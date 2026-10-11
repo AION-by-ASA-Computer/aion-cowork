@@ -127,6 +127,7 @@
     "coreEditorTitle": "Core memory entries",
     "coreEditorDescription": "Facts included in every conversation. Edit or forget the wrong ones; extraction and rebuilding memory keep your changes.",
     "coreEditorEmpty": "No core memory yet.",
+    "coreEditorLoadFailed": "Could not load core memory: {{error}}",
     "coreUserWritten": "Edited by you",
     "coreValueLabel": "Value of {{key}}",
     "coreForget": "Forget",

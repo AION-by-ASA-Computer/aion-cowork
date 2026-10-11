@@ -27,7 +27,9 @@ export function CoreMemoryEditor({
       ),
     [t]
   );
-  const [entries, setEntries] = useState<CoreMemoryListEntry[]>([]);
+  /** `null` until the first load succeeds; the empty state is only for a loaded, empty list. */
+  const [entries, setEntries] = useState<CoreMemoryListEntry[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -36,16 +38,18 @@ export function CoreMemoryEditor({
     let cancelled = false;
     window.electronAPI.memory.getCoreEntries().then(
       (next) => {
-        if (!cancelled) setEntries(next);
+        if (cancelled) return;
+        setEntries(next);
+        setLoadError(null);
       },
       (error: unknown) => {
-        if (!cancelled) onStatus(errorText(error));
+        if (!cancelled) setLoadError(errorText(error));
       }
     );
     return () => {
       cancelled = true;
     };
-  }, [overview, onStatus, errorText]);
+  }, [overview, errorText]);
 
   const run = async (action: () => Promise<CoreMemoryListEntry[]>, success: string) => {
     setIsSaving(true);
@@ -69,7 +73,11 @@ export function CoreMemoryEditor({
       title={t('memory.coreEditorTitle')}
       description={t('memory.coreEditorDescription')}
     >
-      {entries.length === 0 ? (
+      {loadError ? (
+        <div className="rounded-lg border border-rose-300/60 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+          {t('memory.coreEditorLoadFailed', { error: loadError })}
+        </div>
+      ) : entries === null ? null : entries.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border-muted bg-background/50 p-3 text-sm text-text-muted">
           {t('memory.coreEditorEmpty')}
         </div>

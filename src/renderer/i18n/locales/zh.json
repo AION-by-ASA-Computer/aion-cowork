@@ -127,6 +127,7 @@
     "coreEditorTitle": "Core Memory 条目",
     "coreEditorDescription": "每次对话都会带上的事实。可以修改或忘记错误的条目，自动提取和重建记忆都会保留你的修改。",
     "coreEditorEmpty": "暂无 core memory。",
+    "coreEditorLoadFailed": "Core memory 加载失败：{{error}}",
     "coreUserWritten": "你改过",
     "coreValueLabel": "{{key}} 的内容",
     "coreForget": "忘记",
