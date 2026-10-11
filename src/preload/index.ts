@@ -19,6 +19,7 @@ import type {
   ScheduleUpdateInput,
   ProviderModelInfo,
   LocalOllamaDiscoveryResult,
+  CoreMemoryListEntry,
   MemoryOverview,
   MemorySearchResult,
   MemoryReadResult,
@@ -466,6 +467,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('memory.clearWorkspace', cwd),
     clearCoreMemory: (): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('memory.clearCoreMemory'),
+    getCoreEntries: (): Promise<CoreMemoryListEntry[]> =>
+      ipcRenderer.invoke('memory.getCoreEntries'),
+    writeCoreEntry: (combinedKey: string, value: string): Promise<CoreMemoryListEntry[]> =>
+      ipcRenderer.invoke('memory.writeCoreEntry', combinedKey, value),
+    forgetCoreEntry: (combinedKey: string): Promise<CoreMemoryListEntry[]> =>
+      ipcRenderer.invoke('memory.forgetCoreEntry', combinedKey),
     rebuildAll: (): Promise<{ success: boolean; workspaceCount: number; sessionCount: number }> =>
       ipcRenderer.invoke('memory.rebuildAll'),
     listFiles: (): Promise<MemoryDebugFileInfo[]> => ipcRenderer.invoke('memory.listFiles'),
@@ -722,6 +729,9 @@ declare global {
         rebuildWorkspace: (cwd: string) => Promise<{ success: boolean; workspaceKey: string }>;
         clearWorkspace: (cwd: string) => Promise<{ success: boolean; workspaceKey: string }>;
         clearCoreMemory: () => Promise<{ success: boolean }>;
+        getCoreEntries: () => Promise<CoreMemoryListEntry[]>;
+        writeCoreEntry: (combinedKey: string, value: string) => Promise<CoreMemoryListEntry[]>;
+        forgetCoreEntry: (combinedKey: string) => Promise<CoreMemoryListEntry[]>;
         rebuildAll: () => Promise<{
           success: boolean;
           workspaceCount: number;
