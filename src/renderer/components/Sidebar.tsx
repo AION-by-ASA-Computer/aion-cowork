@@ -40,6 +40,7 @@ export function Sidebar() {
   const setShowSettings = useAppStore((s) => s.setShowSettings);
   const {
     deleteSession,
+    renameSession,
     batchDeleteSessions,
     getSessionMessages,
     getSessionTraceSteps,
@@ -390,6 +391,7 @@ export function Sidebar() {
           else void handleSessionClick(sessionId);
         }}
         onExport={handleExportSession}
+        onRename={renameSession}
         onDelete={handleDeleteSession}
       />
 
