@@ -5,6 +5,7 @@ import type { AppConfig } from '../config/config-store';
 import { configStore } from '../config/config-store';
 import type { DatabaseInstance, SessionRow } from '../db/database';
 import { log, logError, logWarn } from '../utils/logger';
+import { MAX_CORE_MEMORY_VALUE_LENGTH } from '../../shared/core-memory';
 import { CoreMemoryStore } from './core-memory-store';
 import { CoreMemoryExtractor } from './core-memory-extractor';
 import { ExperienceMemoryExtractor } from './experience-memory-extractor';
@@ -459,6 +460,9 @@ export class MemoryService {
     const trimmed = value.trim();
     if (!trimmed) {
       throw new Error('Core memory value cannot be empty');
+    }
+    if (trimmed.length > MAX_CORE_MEMORY_VALUE_LENGTH) {
+      throw new Error(`Core memory value cannot exceed ${MAX_CORE_MEMORY_VALUE_LENGTH} characters`);
     }
     this.requireCoreEntry(combinedKey);
     this.getCoreStore().writeEntry(combinedKey, trimmed);

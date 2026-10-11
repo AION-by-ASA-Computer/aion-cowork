@@ -605,9 +605,12 @@ describe('MemoryService', () => {
     expect(prefix).not.toContain('response_language');
   });
 
-  it('rejects empty values and unknown entries when editing core memory', () => {
+  it('rejects empty, too long, and unknown entries when editing core memory', () => {
     expect(() => service.writeCoreEntry('identity.name', '   ')).toThrow(
       'Core memory value cannot be empty'
+    );
+    expect(() => service.writeCoreEntry('identity.name', 'x'.repeat(501))).toThrow(
+      'Core memory value cannot exceed 500 characters'
     );
     expect(() => service.forgetCoreEntry('identity.name')).toThrow(
       'Core memory entry not found: identity.name'

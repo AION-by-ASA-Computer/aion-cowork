@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MAX_CORE_MEMORY_VALUE_LENGTH } from '../../../shared/core-memory';
 import type { CoreMemoryListEntry, MemoryOverview } from '../../types';
 import { SettingsContentSection } from './shared';
 
@@ -86,6 +87,7 @@ export function CoreMemoryEditor({
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     rows={2}
+                    maxLength={MAX_CORE_MEMORY_VALUE_LENGTH}
                     aria-label={t('memory.coreValueLabel', { key: entry.key })}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary"
                   />
