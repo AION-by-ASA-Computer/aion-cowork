@@ -24,6 +24,20 @@ interface CoreMemoryFile {
   forgotten: string[];
 }
 
+/** The file can be edited by hand, so only string values under a key are kept, trimmed. */
+function normalizeValues(value: unknown): Record<string, string> {
+  const normalized: Record<string, string> = {};
+  if (typeof value !== 'object' || value === null) {
+    return normalized;
+  }
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item === 'string' && key.trim()) {
+      normalized[key.trim()] = item.trim();
+    }
+  }
+  return normalized;
+}
+
 export class CoreMemoryStore {
   private readonly memory: Record<string, string>;
   private readonly written: Record<string, string>;
@@ -34,19 +48,15 @@ export class CoreMemoryStore {
     private readonly maxItems = 24
   ) {
     const raw = loadJsonFile<Record<string, unknown>>(filePath, {});
-    const file =
-      raw['version'] === 2
-        ? (raw as unknown as CoreMemoryFile)
-        : { entries: raw, written: {}, forgotten: [] };
-    const normalized: Record<string, string> = {};
-    for (const [key, value] of Object.entries(file.entries)) {
-      if (typeof value === 'string' && key.trim()) {
-        normalized[key.trim()] = value.trim();
-      }
-    }
-    this.memory = normalized;
-    this.written = { ...file.written };
-    this.forgotten = new Set(file.forgotten);
+    const file = raw['version'] === 2 ? raw : { entries: raw };
+    this.memory = normalizeValues(file['entries']);
+    this.written = normalizeValues(file['written']);
+    const forgotten = file['forgotten'];
+    this.forgotten = new Set(
+      Array.isArray(forgotten)
+        ? forgotten.filter((key): key is string => typeof key === 'string')
+        : []
+    );
   }
 
   getPath(): string {

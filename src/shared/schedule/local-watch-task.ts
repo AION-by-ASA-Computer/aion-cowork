@@ -1,5 +1,6 @@
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
+import { stripIpcErrorPrefix } from '../ipc-error';
 
 export type ScheduledTaskRunOutcome =
   | 'baseline'
@@ -22,7 +23,6 @@ export const LOCAL_WATCH_CONFIG_ERRORS = {
 } as const;
 
 const localWatchErrorKeys = new Set<string>(Object.values(LOCAL_WATCH_CONFIG_ERRORS));
-const remoteErrorPrefix = /^Error invoking remote method '[^']+': (?:Error: )?/;
 const timedOutPrefix = `${LOCAL_WATCH_CONFIG_ERRORS.timedOut}:`;
 const exitedPrefix = `${LOCAL_WATCH_CONFIG_ERRORS.commandExited}:`;
 const legacyTimedOut = /^Watch command timed out after (\d+) ms\.$/;
@@ -44,7 +44,7 @@ export function watchCommandExitedMessage(code: number | null, detail: string): 
 }
 
 export function localizeWatchConfigError(message: string, translate: WatchTranslate): string {
-  const raw = message.replace(remoteErrorPrefix, '');
+  const raw = stripIpcErrorPrefix(message);
   if (localWatchErrorKeys.has(raw)) return translate(raw);
   if (raw.startsWith(timedOutPrefix)) {
     const ms = raw.slice(timedOutPrefix.length);

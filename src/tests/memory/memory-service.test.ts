@@ -80,6 +80,7 @@ import type {
 } from '../../main/memory/memory-llm-client';
 import { MemoryService } from '../../main/memory/memory-service';
 import { configStore } from '../../main/config/config-store';
+import { CORE_MEMORY_ERRORS } from '../../shared/core-memory';
 
 class MockMemoryLLMClient implements MemoryLLMClientLike {
   async complete(request: MemoryCompletionRequest): Promise<{ text: string }> {
@@ -605,15 +606,18 @@ describe('MemoryService', () => {
     expect(prefix).not.toContain('response_language');
   });
 
-  it('rejects empty, too long, and unknown entries when editing core memory', () => {
+  it('rejects empty, non-text, too long, and unknown entries when editing core memory', () => {
     expect(() => service.writeCoreEntry('identity.name', '   ')).toThrow(
-      'Core memory value cannot be empty'
+      CORE_MEMORY_ERRORS.emptyValue
+    );
+    expect(() => service.writeCoreEntry('identity.name', 42)).toThrow(
+      CORE_MEMORY_ERRORS.emptyValue
     );
     expect(() => service.writeCoreEntry('identity.name', 'x'.repeat(501))).toThrow(
-      'Core memory value cannot exceed 500 characters'
+      CORE_MEMORY_ERRORS.valueTooLong
     );
     expect(() => service.forgetCoreEntry('identity.name')).toThrow(
-      'Core memory entry not found: identity.name'
+      CORE_MEMORY_ERRORS.entryNotFound
     );
   });
 

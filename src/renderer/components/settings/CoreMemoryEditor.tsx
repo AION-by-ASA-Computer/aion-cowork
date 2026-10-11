@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MAX_CORE_MEMORY_VALUE_LENGTH } from '../../../shared/core-memory';
+import { localizeCoreMemoryError, MAX_CORE_MEMORY_VALUE_LENGTH } from '../../../shared/core-memory';
+import { stripIpcErrorPrefix } from '../../../shared/ipc-error';
 import type { CoreMemoryListEntry, MemoryOverview } from '../../types';
 import { SettingsContentSection } from './shared';
 
@@ -17,6 +18,14 @@ export function CoreMemoryEditor({
   onStatus: (status: string | null) => void;
 }) {
   const { t } = useTranslation();
+  const errorText = useCallback(
+    (error: unknown) =>
+      localizeCoreMemoryError(
+        stripIpcErrorPrefix(error instanceof Error ? error.message : String(error)),
+        t
+      ),
+    [t]
+  );
   const [entries, setEntries] = useState<CoreMemoryListEntry[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -29,13 +38,13 @@ export function CoreMemoryEditor({
         if (!cancelled) setEntries(next);
       },
       (error: unknown) => {
-        if (!cancelled) onStatus(error instanceof Error ? error.message : String(error));
+        if (!cancelled) onStatus(errorText(error));
       }
     );
     return () => {
       cancelled = true;
     };
-  }, [overview, onStatus]);
+  }, [overview, onStatus, errorText]);
 
   const run = async (action: () => Promise<CoreMemoryListEntry[]>, success: string) => {
     setIsSaving(true);
@@ -46,7 +55,7 @@ export function CoreMemoryEditor({
       await onChanged();
       onStatus(success);
     } catch (error) {
-      onStatus(error instanceof Error ? error.message : String(error));
+      onStatus(errorText(error));
     } finally {
       setIsSaving(false);
     }

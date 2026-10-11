@@ -133,6 +133,9 @@
     "coreForgetConfirm": "忘记“{{key}}”？在清空 core memory 之前，它不会再从以前或以后的对话中学回来。",
     "coreSaved": "Core memory 已更新",
     "coreForgotten": "已忘记这条 core memory",
+    "coreErrorEmptyValue": "请输入内容。",
+    "coreErrorValueTooLong": "不能超过 {{max}} 个字符。",
+    "coreErrorEntryNotFound": "这个条目已不存在，记忆可能已经更新。",
     "coreCategory": {
       "identity": "身份",
       "preferences": "偏好",

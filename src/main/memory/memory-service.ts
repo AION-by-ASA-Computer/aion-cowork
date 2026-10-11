@@ -5,7 +5,7 @@ import type { AppConfig } from '../config/config-store';
 import { configStore } from '../config/config-store';
 import type { DatabaseInstance, SessionRow } from '../db/database';
 import { log, logError, logWarn } from '../utils/logger';
-import { MAX_CORE_MEMORY_VALUE_LENGTH } from '../../shared/core-memory';
+import { CORE_MEMORY_ERRORS, MAX_CORE_MEMORY_VALUE_LENGTH } from '../../shared/core-memory';
 import { CoreMemoryStore } from './core-memory-store';
 import { CoreMemoryExtractor } from './core-memory-extractor';
 import { ExperienceMemoryExtractor } from './experience-memory-extractor';
@@ -456,13 +456,14 @@ export class MemoryService {
       .map((entry) => ({ ...entry, userWritten: store.isUserWritten(entry.combinedKey) }));
   }
 
-  writeCoreEntry(combinedKey: string, value: string): CoreMemoryListEntry[] {
-    const trimmed = value.trim();
+  /** Called over IPC, where the value's type is not checked at runtime. */
+  writeCoreEntry(combinedKey: string, value: unknown): CoreMemoryListEntry[] {
+    const trimmed = typeof value === 'string' ? value.trim() : '';
     if (!trimmed) {
-      throw new Error('Core memory value cannot be empty');
+      throw new Error(CORE_MEMORY_ERRORS.emptyValue);
     }
     if (trimmed.length > MAX_CORE_MEMORY_VALUE_LENGTH) {
-      throw new Error(`Core memory value cannot exceed ${MAX_CORE_MEMORY_VALUE_LENGTH} characters`);
+      throw new Error(CORE_MEMORY_ERRORS.valueTooLong);
     }
     this.requireCoreEntry(combinedKey);
     this.getCoreStore().writeEntry(combinedKey, trimmed);
@@ -1029,7 +1030,7 @@ export class MemoryService {
 
   private requireCoreEntry(combinedKey: string): void {
     if (!Object.prototype.hasOwnProperty.call(this.getCoreStore().getRaw(), combinedKey)) {
-      throw new Error(`Core memory entry not found: ${combinedKey}`);
+      throw new Error(CORE_MEMORY_ERRORS.entryNotFound);
     }
   }
 

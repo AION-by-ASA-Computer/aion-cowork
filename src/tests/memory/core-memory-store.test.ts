@@ -125,6 +125,31 @@ describe('CoreMemoryStore', () => {
     expect(store.isUserWritten('identity.name')).toBe(false);
   });
 
+  it('keeps only valid corrections from a hand-edited core memory file', () => {
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify({
+        version: 2,
+        entries: { 'identity.name': 'Jackson' },
+        written: { 'identity.name': ' Jackson ', 'skills.go': 3 },
+        forgotten: 'skills.python',
+      })
+    );
+
+    const store = new CoreMemoryStore(filePath);
+    store.applyActions([]);
+
+    expect(store.isUserWritten('identity.name')).toBe(true);
+    expect(store.isUserWritten('skills.go')).toBe(false);
+    expect(store.toPromptBlock()).not.toContain('skills.go');
+    expect(JSON.parse(fs.readFileSync(filePath, 'utf8'))).toEqual({
+      version: 2,
+      entries: { 'identity.name': 'Jackson' },
+      written: { 'identity.name': 'Jackson' },
+      forgotten: [],
+    });
+  });
+
   it('clears edits and forgotten keys with the rest of core memory', () => {
     const store = new CoreMemoryStore(filePath);
     store.applyActions([
