@@ -59,6 +59,13 @@ export class CoreMemoryStore {
     this.memory = normalizeValues(file['entries']);
     this.written = normalizeValues(file['written']);
     this.forgotten = new Set(normalizeKeys(file['forgotten']));
+    // Every write keeps forgotten keys out of the entries and the written
+    // values in them; a hand-edited file may not, and forgetting wins.
+    for (const key of this.forgotten) {
+      delete this.memory[key];
+      delete this.written[key];
+    }
+    Object.assign(this.memory, this.written);
   }
 
   getPath(): string {

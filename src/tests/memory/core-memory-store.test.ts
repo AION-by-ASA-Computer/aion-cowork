@@ -117,12 +117,41 @@ describe('CoreMemoryStore', () => {
   });
 
   it('reads a core memory file saved before corrections existed', () => {
-    fs.writeFileSync(filePath, JSON.stringify({ 'identity.name': 'Jack' }));
+    fs.writeFileSync(filePath, JSON.stringify({ 'identity.name': 'Jack', 'skills.go': '  ' }));
 
     const store = new CoreMemoryStore(filePath);
 
+    expect(store.getEntries().map((entry) => entry.combinedKey)).toEqual(['identity.name']);
     expect(valueOf(store, 'identity.name')).toBe('Jack');
     expect(store.isUserWritten('identity.name')).toBe(false);
+  });
+
+  it('applies corrections over the entries of a hand-edited file, with forgetting first', () => {
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify({
+        version: 2,
+        entries: { 'identity.name': 'Jack', 'skills.python': '偏好 Python' },
+        written: { 'identity.name': 'Jackson', 'skills.python': '只用 Python', 'skills.go': 'Go' },
+        forgotten: ['skills.python'],
+      })
+    );
+
+    const store = new CoreMemoryStore(filePath);
+
+    expect(store.getEntries().map(({ combinedKey, value }) => [combinedKey, value])).toEqual([
+      ['identity.name', 'Jackson'],
+      ['skills.go', 'Go'],
+    ]);
+    store.applyActions([]);
+    expect(store.toPromptBlock()).not.toContain('python');
+    expect(store.toPromptBlock()).not.toContain('undefined');
+    expect(JSON.parse(fs.readFileSync(filePath, 'utf8'))).toEqual({
+      version: 2,
+      entries: { 'identity.name': 'Jackson', 'skills.go': 'Go' },
+      written: { 'identity.name': 'Jackson', 'skills.go': 'Go' },
+      forgotten: ['skills.python'],
+    });
   });
 
   it('keeps only valid corrections from a hand-edited core memory file', () => {
