@@ -11,6 +11,7 @@ import type {
   MemorySearchScope,
 } from '../../types';
 import { useAppStore } from '../../store';
+import { CoreMemoryEditor } from './CoreMemoryEditor';
 import { SettingsContentSection } from './shared';
 
 type SearchMode = 'workspace' | 'all' | 'global';
@@ -424,6 +425,15 @@ export function SettingsMemory() {
           </div>
         </div>
       </SettingsContentSection>
+
+      <CoreMemoryEditor
+        overview={overview}
+        disabled={isBusy}
+        onChanged={async () => {
+          await Promise.all([refreshOverview(), refreshFiles()]);
+        }}
+        onStatus={setStatus}
+      />
 
       <SettingsContentSection
         title={t('memory.runtimeTitle', '运行时配置')}

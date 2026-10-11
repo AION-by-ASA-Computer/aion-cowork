@@ -18,6 +18,7 @@ import { MemoryRetriever } from './memory-retriever';
 import { MemorySessionStateStore } from './memory-state-store';
 import type {
   ChunkMemoryItem,
+  CoreMemoryListEntry,
   MemoryDebugFileContent,
   MemoryDebugFileInfo,
   MemoryIngestionInput,
@@ -415,7 +416,7 @@ export class MemoryService {
 
   async rebuildAll(): Promise<{ success: boolean; workspaceCount: number; sessionCount: number }> {
     const paths = this.getPaths();
-    safeRemoveFile(paths.coreFilePath);
+    this.getCoreStore().clearExtracted();
     safeRemoveFile(paths.experienceFilePath);
     safeRemoveFile(paths.stateFilePath);
     fs.rmSync(paths.artifactsDir, { recursive: true, force: true });
@@ -445,6 +446,29 @@ export class MemoryService {
     store.save();
     this.getStateStore().deleteBySourceWorkspace(workspaceKey);
     return { success: true, workspaceKey };
+  }
+
+  getCoreEntries(): CoreMemoryListEntry[] {
+    const store = this.getCoreStore();
+    return store
+      .getEntries()
+      .map((entry) => ({ ...entry, userWritten: store.isUserWritten(entry.combinedKey) }));
+  }
+
+  writeCoreEntry(combinedKey: string, value: string): CoreMemoryListEntry[] {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      throw new Error('Core memory value cannot be empty');
+    }
+    this.requireCoreEntry(combinedKey);
+    this.getCoreStore().writeEntry(combinedKey, trimmed);
+    return this.getCoreEntries();
+  }
+
+  forgetCoreEntry(combinedKey: string): CoreMemoryListEntry[] {
+    this.requireCoreEntry(combinedKey);
+    this.getCoreStore().forgetEntry(combinedKey);
+    return this.getCoreEntries();
   }
 
   clearCoreMemory(): { success: boolean } {
@@ -997,6 +1021,12 @@ export class MemoryService {
     this.coreStore = null;
     this.stateStore = null;
     this.experienceStore = null;
+  }
+
+  private requireCoreEntry(combinedKey: string): void {
+    if (!Object.prototype.hasOwnProperty.call(this.getCoreStore().getRaw(), combinedKey)) {
+      throw new Error(`Core memory entry not found: ${combinedKey}`);
+    }
   }
 
   private getCoreStore(): CoreMemoryStore {

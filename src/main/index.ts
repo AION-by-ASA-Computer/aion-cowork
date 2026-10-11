@@ -3100,6 +3100,27 @@ ipcMain.handle('memory.clearCoreMemory', () => {
   return memoryService.clearCoreMemory();
 });
 
+ipcMain.handle('memory.getCoreEntries', () => {
+  if (!memoryService) {
+    throw new Error('Memory service not initialized');
+  }
+  return memoryService.getCoreEntries();
+});
+
+ipcMain.handle('memory.writeCoreEntry', (_event, combinedKey: string, value: string) => {
+  if (!memoryService) {
+    throw new Error('Memory service not initialized');
+  }
+  return memoryService.writeCoreEntry(combinedKey, value);
+});
+
+ipcMain.handle('memory.forgetCoreEntry', (_event, combinedKey: string) => {
+  if (!memoryService) {
+    throw new Error('Memory service not initialized');
+  }
+  return memoryService.forgetCoreEntry(combinedKey);
+});
+
 ipcMain.handle('memory.rebuildAll', async () => {
   if (!memoryService) {
     throw new Error('Memory service not initialized');

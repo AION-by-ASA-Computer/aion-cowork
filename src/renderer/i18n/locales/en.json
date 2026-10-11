@@ -120,10 +120,26 @@
     "clearCore": "Clear core memory",
     "rebuildConfirm": "Rebuild experience memory for the current workspace? This rescans historical sessions in that workspace.",
     "clearWorkspaceConfirm": "Clear experience memory for the current workspace? This cannot be undone.",
-    "clearCoreConfirm": "Clear all global core memory? This cannot be undone.",
+    "clearCoreConfirm": "Clear all global core memory, including your edits and forgotten entries? This cannot be undone.",
     "rebuildSuccess": "Workspace memory rebuilt",
     "clearWorkspaceSuccess": "Workspace memory cleared",
-    "clearCoreSuccess": "Core memory cleared"
+    "clearCoreSuccess": "Core memory cleared",
+    "coreEditorTitle": "Core memory entries",
+    "coreEditorDescription": "Facts included in every conversation. Edit or forget the wrong ones; extraction and rebuilding memory keep your changes.",
+    "coreEditorEmpty": "No core memory yet.",
+    "coreUserWritten": "Edited by you",
+    "coreValueLabel": "Value of {{key}}",
+    "coreForget": "Forget",
+    "coreForgetConfirm": "Forget \"{{key}}\"? It will not be learned again from past or future conversations until you clear core memory.",
+    "coreSaved": "Core memory updated",
+    "coreForgotten": "Core memory entry forgotten",
+    "coreCategory": {
+      "identity": "Identity",
+      "preferences": "Preferences",
+      "skills": "Skills",
+      "interests": "Interests",
+      "other": "Other"
+    }
   },
   "language": {
     "english": "English",

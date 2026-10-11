@@ -370,6 +370,15 @@ export interface MemoryInspectSessionResult {
   chunks: ChunkMemoryItem[];
 }
 
+export interface CoreMemoryListEntry {
+  combinedKey: string;
+  category?: 'identity' | 'preferences' | 'skills' | 'interests';
+  key: string;
+  value: string;
+  /** Written by the user in Settings; extraction and rebuild keep it as is. */
+  userWritten: boolean;
+}
+
 export interface MemoryOverview {
   enabled: boolean;
   storageRoot: string;

@@ -120,10 +120,26 @@
     "clearCore": "清空 Core Memory",
     "rebuildConfirm": "确认重建当前工作区的 experience memory？这会重新扫描该工作区下的历史 session。",
     "clearWorkspaceConfirm": "确认清空当前工作区的 experience memory？此操作不可撤销。",
-    "clearCoreConfirm": "确认清空全局 core memory？此操作不可撤销。",
+    "clearCoreConfirm": "确认清空全局 core memory（包括你修改和忘记的条目）？此操作不可撤销。",
     "rebuildSuccess": "工作区记忆已重建",
     "clearWorkspaceSuccess": "当前工作区记忆已清空",
-    "clearCoreSuccess": "Core memory 已清空"
+    "clearCoreSuccess": "Core memory 已清空",
+    "coreEditorTitle": "Core Memory 条目",
+    "coreEditorDescription": "每次对话都会带上的事实。可以修改或忘记错误的条目，自动提取和重建记忆都会保留你的修改。",
+    "coreEditorEmpty": "暂无 core memory。",
+    "coreUserWritten": "你改过",
+    "coreValueLabel": "{{key}} 的内容",
+    "coreForget": "忘记",
+    "coreForgetConfirm": "忘记“{{key}}”？在清空 core memory 之前，它不会再从以前或以后的对话中学回来。",
+    "coreSaved": "Core memory 已更新",
+    "coreForgotten": "已忘记这条 core memory",
+    "coreCategory": {
+      "identity": "身份",
+      "preferences": "偏好",
+      "skills": "技能",
+      "interests": "兴趣",
+      "other": "其他"
+    }
   },
   "language": {
     "english": "English",
