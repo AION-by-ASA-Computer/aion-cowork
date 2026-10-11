@@ -56,6 +56,7 @@ export function CoreMemoryEditor({
     onStatus(null);
     try {
       setEntries(await action());
+      setLoadError(null);
       setEditingKey(null);
       onStatus(success);
       onChanged();
@@ -73,11 +74,12 @@ export function CoreMemoryEditor({
       title={t('memory.coreEditorTitle')}
       description={t('memory.coreEditorDescription')}
     >
-      {loadError ? (
+      {loadError && (
         <div className="rounded-lg border border-rose-300/60 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
           {t('memory.coreEditorLoadFailed', { error: loadError })}
         </div>
-      ) : entries === null ? null : entries.length === 0 ? (
+      )}
+      {entries === null ? null : entries.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border-muted bg-background/50 p-3 text-sm text-text-muted">
           {t('memory.coreEditorEmpty')}
         </div>
