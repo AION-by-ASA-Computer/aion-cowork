@@ -69,6 +69,7 @@ import {
   type ScheduledTaskUpdateInput,
 } from './schedule/scheduled-task-manager';
 import { createScheduledTaskStore } from './schedule/scheduled-task-store';
+import { checkLocalCondition } from './schedule/local-condition-checker';
 import {
   buildScheduledTaskFallbackTitle,
   buildScheduledTaskTitle,
@@ -997,6 +998,7 @@ app
       const headlessScheduledTaskStore = createScheduledTaskStore(db);
       scheduledTaskManager = new ScheduledTaskManager({
         store: headlessScheduledTaskStore,
+        checkCondition: checkLocalCondition,
         executeTask: async (task) => {
           if (!sessionManager) {
             throw new Error('Session manager not initialized');
@@ -1177,9 +1179,22 @@ app
           validateWorkingDirectory: (cwd) => {
             return getWorkspacePathUnsupportedReason(cwd) || null;
           },
+          hasSession: (sessionId) => {
+            if (!sessionManager) throw new Error('Session manager not initialized');
+            return sessionManager.hasSession(sessionId);
+          },
         };
         remoteManager.setAgentExecutor(stdioAgentExecutor);
         remoteManager.setRendererCallback(headlessSendWithPermission);
+
+        // Cascade channel-binding cleanup when a session is deleted, so a
+        // deleted channel session cannot leave a stale in-memory binding.
+        headlessExtensionManager.register({
+          name: 'remote-session-binding',
+          onSessionDeleted: async ({ sessionId }) => {
+            await remoteManager.handleSessionDeleted(sessionId);
+          },
+        });
 
         const stdioChannel = await remoteManager.startStdioMode(headlessArgs.cwd);
 
@@ -1410,6 +1425,7 @@ app
     const scheduledTaskStore = createScheduledTaskStore(db);
     scheduledTaskManager = new ScheduledTaskManager({
       store: scheduledTaskStore,
+      checkCondition: checkLocalCondition,
       executeTask: async (task) => {
         if (!sessionManager) {
           throw new Error('Session manager not initialized');
@@ -1479,8 +1495,22 @@ app
         }
         return null;
       },
+      hasSession: (sessionId) => {
+        if (!sessionManager) throw new Error('Session manager not initialized');
+        return sessionManager.hasSession(sessionId);
+      },
     };
     remoteManager.setAgentExecutor(agentExecutor);
+
+    // Cascade channel-binding cleanup when a session is deleted from the
+    // desktop UI, so a deleted channel session cannot leave a stale in-memory
+    // binding (channel would otherwise keep failing until restart).
+    extensionManager.register({
+      name: 'remote-session-binding',
+      onSessionDeleted: async ({ sessionId }) => {
+        await remoteManager.handleSessionDeleted(sessionId);
+      },
+    });
 
     // 远程控制启用时启动
     if (remoteConfigStore.isEnabled()) {
@@ -3235,6 +3265,9 @@ async function handleClientEvent(event: ClientEvent): Promise<unknown> {
 
     case 'session.delete':
       return sm.deleteSession(event.payload.sessionId);
+
+    case 'session.rename':
+      return sm.renameSession(event.payload.sessionId, event.payload.title);
 
     case 'session.batchDelete':
       return sm.batchDeleteSessions(event.payload.sessionIds);
