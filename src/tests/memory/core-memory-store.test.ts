@@ -150,6 +150,29 @@ describe('CoreMemoryStore', () => {
     });
   });
 
+  it('drops blank corrections and trims forgotten keys from a hand-edited file', () => {
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify({
+        version: 2,
+        entries: { 'identity.name': 'Jack' },
+        written: { 'identity.name': '   ' },
+        forgotten: [' skills.python ', '  ', 7],
+      })
+    );
+
+    const store = new CoreMemoryStore(filePath);
+    store.applyActions([
+      { op: 'upsert', category: 'identity', key: 'name', value: 'Jackson' },
+      { op: 'upsert', category: 'skills', key: 'python', value: '偏好 Python' },
+    ]);
+
+    expect(store.isUserWritten('identity.name')).toBe(false);
+    expect(valueOf(store, 'identity.name')).toBe('Jackson');
+    expect(valueOf(store, 'skills.python')).toBeUndefined();
+    expect(JSON.parse(fs.readFileSync(filePath, 'utf8')).forgotten).toEqual(['skills.python']);
+  });
+
   it('clears edits and forgotten keys with the rest of core memory', () => {
     const store = new CoreMemoryStore(filePath);
     store.applyActions([

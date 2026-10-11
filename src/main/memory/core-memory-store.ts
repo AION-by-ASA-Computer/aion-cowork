@@ -24,18 +24,25 @@ interface CoreMemoryFile {
   forgotten: string[];
 }
 
-/** The file can be edited by hand, so only string values under a key are kept, trimmed. */
+/** The file can be edited by hand, so keys and values are trimmed and blank ones dropped. */
 function normalizeValues(value: unknown): Record<string, string> {
   const normalized: Record<string, string> = {};
   if (typeof value !== 'object' || value === null) {
     return normalized;
   }
   for (const [key, item] of Object.entries(value)) {
-    if (typeof item === 'string' && key.trim()) {
-      normalized[key.trim()] = item.trim();
+    const trimmed = typeof item === 'string' ? item.trim() : '';
+    if (key.trim() && trimmed) {
+      normalized[key.trim()] = trimmed;
     }
   }
   return normalized;
+}
+
+function normalizeKeys(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map((key) => (typeof key === 'string' ? key.trim() : '')).filter(Boolean)
+    : [];
 }
 
 export class CoreMemoryStore {
@@ -51,12 +58,7 @@ export class CoreMemoryStore {
     const file = raw['version'] === 2 ? raw : { entries: raw };
     this.memory = normalizeValues(file['entries']);
     this.written = normalizeValues(file['written']);
-    const forgotten = file['forgotten'];
-    this.forgotten = new Set(
-      Array.isArray(forgotten)
-        ? forgotten.filter((key): key is string => typeof key === 'string')
-        : []
-    );
+    this.forgotten = new Set(normalizeKeys(file['forgotten']));
   }
 
   getPath(): string {
