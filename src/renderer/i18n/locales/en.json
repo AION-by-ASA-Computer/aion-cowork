@@ -133,6 +133,7 @@
     "coreForgetConfirm": "Forget \"{{key}}\"? It will not be learned again from past or future conversations until you clear core memory.",
     "coreSaved": "Core memory updated",
     "coreForgotten": "Core memory entry forgotten",
+    "coreRefreshFailed": "Core memory updated, but the memory overview could not be refreshed: {{error}}",
     "coreErrorEmptyValue": "Enter a value.",
     "coreErrorValueTooLong": "Keep it within {{max}} characters.",
     "coreErrorEntryNotFound": "This entry no longer exists; memory may have updated it.",

@@ -14,7 +14,8 @@ export function CoreMemoryEditor({
   /** A new overview means core memory may have changed elsewhere (clear, rebuild). */
   overview: MemoryOverview | null;
   disabled: boolean;
-  onChanged: () => Promise<void>;
+  /** Called after a saved change; refreshing the rest of the page is the caller's job. */
+  onChanged: () => void;
   onStatus: (status: string | null) => void;
 }) {
   const { t } = useTranslation();
@@ -52,8 +53,8 @@ export function CoreMemoryEditor({
     try {
       setEntries(await action());
       setEditingKey(null);
-      await onChanged();
       onStatus(success);
+      onChanged();
     } catch (error) {
       onStatus(errorText(error));
     } finally {

@@ -11,6 +11,7 @@ import type {
   MemorySearchScope,
 } from '../../types';
 import { useAppStore } from '../../store';
+import { stripIpcErrorPrefix } from '../../../shared/ipc-error';
 import { CoreMemoryEditor } from './CoreMemoryEditor';
 import { SettingsContentSection } from './shared';
 
@@ -429,8 +430,14 @@ export function SettingsMemory() {
       <CoreMemoryEditor
         overview={overview}
         disabled={isBusy}
-        onChanged={async () => {
-          await Promise.all([refreshOverview(), refreshFiles()]);
+        onChanged={() => {
+          void Promise.all([refreshOverview(), refreshFiles()]).catch((error: unknown) => {
+            setStatus(
+              t('memory.coreRefreshFailed', {
+                error: stripIpcErrorPrefix(error instanceof Error ? error.message : String(error)),
+              })
+            );
+          });
         }}
         onStatus={setStatus}
       />
