@@ -72,10 +72,7 @@ describe('Sidebar single-session delete confirmation', () => {
 
   function openDeleteDialog(root: ReactTestInstance, title: string) {
     const row = sessionRow(root, title);
-    act(() => {
-      row.props.onMouseEnter();
-    });
-    const deleteButton = row.findByType('button');
+    const deleteButton = row.findByProps({ 'aria-label': i18n.t('common.delete') });
     act(() => {
       deleteButton.props.onClick({ stopPropagation() {} } as MouseEvent);
     });
