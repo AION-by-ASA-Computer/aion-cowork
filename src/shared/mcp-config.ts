@@ -9,7 +9,6 @@
  * helpers below only change the targeted entry inside the original collection
  * (array, keyed object, JSON string, or `mcpServers` map).
  */
-import { isDeepStrictEqual } from 'node:util';
 import type { McpServerConfig, McpServerStatus, McpTool } from './ipc-types';
 
 export type McpTransportType = McpServerConfig['type'];
@@ -516,6 +515,30 @@ function findStoredServerEntry(
   return undefined;
 }
 
+function sameServerFieldValue(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) {
+    return true;
+  }
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return (
+      left.length === right.length && left.every((value, index) => Object.is(value, right[index]))
+    );
+  }
+  // Managed fields contain only primitives, string arrays, or string records.
+  // Compare records independently of key order without importing Node in the renderer.
+  if (isPlainObject(left) && isPlainObject(right)) {
+    const keys = Object.keys(left);
+    return (
+      keys.length === Object.keys(right).length &&
+      keys.every(
+        (key) =>
+          Object.prototype.hasOwnProperty.call(right, key) && Object.is(left[key], right[key])
+      )
+    );
+  }
+  return false;
+}
+
 /**
  * Apply only the fields that differ from the normalized view, so a save does
  * not rewrite Claude-only fields (`type: "http"`, string `args`, omitted
@@ -531,7 +554,7 @@ function patchStoredServerEntry(
   let changed = false;
   for (const key of MANAGED_SERVER_KEYS) {
     const nextValue = saved[key];
-    if (isDeepStrictEqual(nextValue, normalized[key])) {
+    if (sameServerFieldValue(nextValue, normalized[key])) {
       continue;
     }
     changed = true;
