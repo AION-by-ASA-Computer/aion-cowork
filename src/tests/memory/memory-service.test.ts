@@ -80,6 +80,7 @@ import type {
 } from '../../main/memory/memory-llm-client';
 import { MemoryService } from '../../main/memory/memory-service';
 import { configStore } from '../../main/config/config-store';
+import { CORE_MEMORY_ERRORS } from '../../shared/core-memory';
 
 class MockMemoryLLMClient implements MemoryLLMClientLike {
   async complete(request: MemoryCompletionRequest): Promise<{ text: string }> {
@@ -563,6 +564,61 @@ describe('MemoryService', () => {
     expect(overview.experienceSessionCount).toBe(1);
     expect(overview.sourceWorkspaceCount).toBe(1);
     expect(overview.experienceFilePath).toContain('experience_memory.json');
+  });
+
+  it('keeps core memory edits and forgotten entries through a rebuild', async () => {
+    insertSession(rawDb, {
+      id: 'session-a',
+      title: 'Profile',
+      cwd: '/repo/a',
+      createdAt: 1000,
+    });
+    insertMessage(rawDb, {
+      id: 'm1',
+      sessionId: 'session-a',
+      role: 'user',
+      text: '请用中文回答，我叫 Jack。',
+      timestamp: 1,
+    });
+    await service.rebuildAll();
+    expect(
+      service
+        .getCoreEntries()
+        .map((entry) => entry.combinedKey)
+        .sort()
+    ).toEqual(['identity.name', 'preferences.response_language']);
+
+    service.writeCoreEntry('identity.name', ' Jackson ');
+    service.forgetCoreEntry('preferences.response_language');
+    await service.rebuildAll();
+
+    expect(service.getCoreEntries()).toEqual([
+      {
+        combinedKey: 'identity.name',
+        category: 'identity',
+        key: 'name',
+        value: 'Jackson',
+        userWritten: true,
+      },
+    ]);
+    const prefix = await service.buildPromptPrefix({ cwd: '/repo/a' }, 'hello');
+    expect(prefix).toContain('identity.name: Jackson');
+    expect(prefix).not.toContain('response_language');
+  });
+
+  it('rejects empty, non-text, too long, and unknown entries when editing core memory', () => {
+    expect(() => service.writeCoreEntry('identity.name', '   ')).toThrow(
+      CORE_MEMORY_ERRORS.emptyValue
+    );
+    expect(() => service.writeCoreEntry('identity.name', 42)).toThrow(
+      CORE_MEMORY_ERRORS.emptyValue
+    );
+    expect(() => service.writeCoreEntry('identity.name', 'x'.repeat(501))).toThrow(
+      CORE_MEMORY_ERRORS.valueTooLong
+    );
+    expect(() => service.forgetCoreEntry('identity.name')).toThrow(
+      CORE_MEMORY_ERRORS.entryNotFound
+    );
   });
 
   it('does not resurrect deleted experience memory when deletion happens during queued ingestion', async () => {

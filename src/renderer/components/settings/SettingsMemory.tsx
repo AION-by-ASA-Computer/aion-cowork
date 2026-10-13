@@ -11,6 +11,8 @@ import type {
   MemorySearchScope,
 } from '../../types';
 import { useAppStore } from '../../store';
+import { stripIpcErrorPrefix } from '../../../shared/ipc-error';
+import { CoreMemoryEditor } from './CoreMemoryEditor';
 import { SettingsContentSection } from './shared';
 
 type SearchMode = 'workspace' | 'all' | 'global';
@@ -370,8 +372,14 @@ export function SettingsMemory() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard label={t('memory.coreCount')} value={overview?.coreCount ?? 0} />
-            <MetricCard label={t('memory.sessionCount')} value={overview?.experienceSessionCount ?? 0} />
-            <MetricCard label={t('memory.chunkCount')} value={overview?.experienceChunkCount ?? 0} />
+            <MetricCard
+              label={t('memory.sessionCount')}
+              value={overview?.experienceSessionCount ?? 0}
+            />
+            <MetricCard
+              label={t('memory.chunkCount')}
+              value={overview?.experienceChunkCount ?? 0}
+            />
             <MetricCard
               label={t('memory.workspaceCount')}
               value={overview?.sourceWorkspaceCount ?? 0}
@@ -408,7 +416,9 @@ export function SettingsMemory() {
                 overview?.topSourceWorkspaces?.length
                   ? `Top sources: ${overview.topSourceWorkspaces
                       .slice(0, 3)
-                      .map((item) => `${item.workspaceKey} (${item.sessionCount}/${item.chunkCount})`)
+                      .map(
+                        (item) => `${item.workspaceKey} (${item.sessionCount}/${item.chunkCount})`
+                      )
                       .join(' · ')}`
                   : undefined
               }
@@ -416,6 +426,21 @@ export function SettingsMemory() {
           </div>
         </div>
       </SettingsContentSection>
+
+      <CoreMemoryEditor
+        overview={overview}
+        disabled={isBusy}
+        onChanged={() => {
+          void Promise.all([refreshOverview(), refreshFiles()]).catch((error: unknown) => {
+            setStatus(
+              t('memory.coreRefreshFailed', {
+                error: stripIpcErrorPrefix(error instanceof Error ? error.message : String(error)),
+              })
+            );
+          });
+        }}
+        onStatus={setStatus}
+      />
 
       <SettingsContentSection
         title={t('memory.runtimeTitle', '运行时配置')}
@@ -740,7 +765,9 @@ export function SettingsMemory() {
                       </p>
                       <p className="mt-1 text-sm font-medium text-text-primary">{selected.title}</p>
                     </div>
-                    <p className="text-sm text-text-secondary whitespace-pre-wrap">{selected.summary}</p>
+                    <p className="text-sm text-text-secondary whitespace-pre-wrap">
+                      {selected.summary}
+                    </p>
                     {selected.sourceFile && (
                       <p className="text-xs text-text-muted">
                         {t('memory.sourceFile', '来源文件')}: {selected.sourceFile}
@@ -749,7 +776,10 @@ export function SettingsMemory() {
                     {selected.sessionId && (
                       <button
                         onClick={() => {
-                          void handleInspectSession(selected.sessionId!, selected.sourceWorkspace || selected.workspaceKey);
+                          void handleInspectSession(
+                            selected.sessionId!,
+                            selected.sourceWorkspace || selected.workspaceKey
+                          );
                         }}
                         className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-text-primary"
                       >
@@ -825,7 +855,10 @@ export function SettingsMemory() {
                   </div>
                 ) : (
                   <p className="mt-3 text-sm text-text-muted">
-                    {t('memory.inspectSessionHint', '从上方搜索结果中选择一个 session 或 chunk 后查看')}
+                    {t(
+                      'memory.inspectSessionHint',
+                      '从上方搜索结果中选择一个 session 或 chunk 后查看'
+                    )}
                   </p>
                 )}
               </div>
@@ -873,7 +906,9 @@ export function SettingsMemory() {
                   <p className="mt-1 text-xs text-text-muted">{file.filePath}</p>
                   <p className="mt-2 text-[11px] text-text-muted">
                     {file.sizeBytes} bytes
-                    {typeof file.sessionCount === 'number' ? ` · ${file.sessionCount} sessions` : ''}
+                    {typeof file.sessionCount === 'number'
+                      ? ` · ${file.sessionCount} sessions`
+                      : ''}
                     {typeof file.chunkCount === 'number' ? ` · ${file.chunkCount} chunks` : ''}
                   </p>
                 </button>
@@ -1001,13 +1036,7 @@ function InfoCard({
   );
 }
 
-function LabeledField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function LabeledField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1.5">
       <span className="text-xs font-medium text-text-muted">{label}</span>
@@ -1028,7 +1057,11 @@ function ToggleField({
   return (
     <label className="flex items-center justify-between gap-3 rounded-lg border border-border-muted bg-background/70 px-3 py-2.5">
       <span className="text-sm text-text-primary">{label}</span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
     </label>
   );
 }
@@ -1070,7 +1103,9 @@ function ResultGroup({
                   {[item.sourceWorkspace, item.sourceSessionTitle].filter(Boolean).join(' · ')}
                 </p>
               )}
-              {item.sourceFile && <p className="mt-2 text-[11px] text-text-muted">{item.sourceFile}</p>}
+              {item.sourceFile && (
+                <p className="mt-2 text-[11px] text-text-muted">{item.sourceFile}</p>
+              )}
             </button>
           ))}
         </div>

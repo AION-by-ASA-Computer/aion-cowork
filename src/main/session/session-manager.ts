@@ -26,6 +26,7 @@ import type {
 } from '../../renderer/types';
 import type { DatabaseInstance, TraceStepRow } from '../db/database';
 import { PathResolver } from '../sandbox/path-resolver';
+import { SessionNotFoundError } from './session-errors';
 import {
   SandboxAdapter,
   getSandboxAdapter,
@@ -57,6 +58,7 @@ import {
 } from './session-title-utils';
 import { generateTitleWithSdk } from '../agent/sdk-one-shot';
 import { buildScheduledTaskTitle } from '../../shared/schedule/task-title';
+import { MAX_RENAMED_SESSION_TITLE_LENGTH } from '../../shared/session-title';
 
 interface AgentRunner {
   run(session: Session, prompt: string, existingMessages: Message[]): Promise<void>;
@@ -381,6 +383,14 @@ export class SessionManager {
     };
   }
 
+  /**
+   * Existence check used by RemoteManager's stale-binding probe: a session may
+   * be deleted from the desktop UI while a channel binding still points at it.
+   */
+  hasSession(sessionId: string): boolean {
+    return Boolean(this.loadSession(sessionId));
+  }
+
   // List all sessions
   listSessions(): Session[] {
     const rows = this.db.sessions.getAll();
@@ -429,7 +439,7 @@ export class SessionManager {
 
     const session = this.loadSession(sessionId);
     if (!session) {
-      throw new Error(`Session not found: ${sessionId}`);
+      throw new SessionNotFoundError(sessionId);
     }
 
     this.enqueuePrompt(session, prompt, content);
@@ -1041,6 +1051,20 @@ export class SessionManager {
       type: 'session.status',
       payload: { sessionId, status },
     });
+  }
+
+  renameSession(sessionId: string, title: string): void {
+    // The payload comes from IPC clients, so its type is not guaranteed.
+    const trimmed = typeof title === 'string' ? title.trim() : '';
+    if (!trimmed) {
+      throw new Error('Session title cannot be empty');
+    }
+    if (trimmed.length > MAX_RENAMED_SESSION_TITLE_LENGTH) {
+      throw new Error(`Session title cannot exceed ${MAX_RENAMED_SESSION_TITLE_LENGTH} characters`);
+    }
+    if (!this.updateSessionTitle(sessionId, trimmed)) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
   }
 
   private updateSessionTitle(sessionId: string, title: string): boolean {
