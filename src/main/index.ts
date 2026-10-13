@@ -2136,11 +2136,15 @@ ipcMain.handle('config.getPublicPath', () => {
 
 // MCP Server IPC handlers
 ipcMain.handle('mcp.getServers', () => {
+  return mcpConfigStore.getServers();
+});
+
+ipcMain.handle('mcp.getServersForSettings', () => {
   try {
-    return mcpConfigStore.getServers();
+    return mcpConfigStore.getServersForSettings();
   } catch (error) {
     logError('[MCP] Error getting servers:', error);
-    return [];
+    throw error;
   }
 });
 

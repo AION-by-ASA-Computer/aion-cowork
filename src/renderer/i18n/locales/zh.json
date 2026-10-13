@@ -516,13 +516,17 @@
     "envValuePlaceholder": "输入值",
     "removeVar": "移除",
     "loadServersFailed": "加载连接器失败",
+    "configNeedsRepair": "无法读取 MCP 配置，原有配置已保留。请先修复 mcp-config.json，再保存更改。",
     "saveServerFailed": "保存连接器失败",
     "deleteServerFailed": "删除连接器失败",
     "deleteConnectorConfirm": "确认删除这个连接器？",
     "commandRequired": "命令不能为空",
     "urlRequired": "URL 不能为空",
     "toolCount": "{{count}} 个工具",
-    "callCount": "{{count}} 次调用"
+    "callCount": "{{count}} 次调用",
+    "pageErrorTitle": "MCP 连接器页面渲染失败",
+    "pageErrorDescription": "连接器配置仍保存在磁盘上。请重试此标签页，或检查 mcp-config.json 是否被写成了非预期结构（例如 Claude 的 mcpServers 映射）。",
+    "pageErrorRetry": "重试"
   },
   "credentials": {
     "envVars": "环境变量",

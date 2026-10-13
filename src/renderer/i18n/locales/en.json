@@ -516,13 +516,17 @@
     "envValuePlaceholder": "Enter value",
     "removeVar": "Remove",
     "loadServersFailed": "Failed to load connectors",
+    "configNeedsRepair": "The MCP configuration could not be read. Your existing configuration has been preserved. Repair mcp-config.json before saving changes.",
     "saveServerFailed": "Failed to save connector",
     "deleteServerFailed": "Failed to delete connector",
     "deleteConnectorConfirm": "Delete this connector?",
     "commandRequired": "Command is required",
     "urlRequired": "URL is required",
     "toolCount": "{{count}} tools",
-    "callCount": "{{count}} calls"
+    "callCount": "{{count}} calls",
+    "pageErrorTitle": "MCP Connectors failed to render",
+    "pageErrorDescription": "Your connector config is still on disk. Retry this tab, or check mcp-config.json for unexpected shapes (for example Claude-style mcpServers maps).",
+    "pageErrorRetry": "Retry"
   },
   "credentials": {
     "envVars": "Environment Variables",
