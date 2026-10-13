@@ -12,6 +12,7 @@
  * Dependencies: session-manager, config-store, mcp-manager, sandbox-adapter,
  *               skills-manager, scheduled-task-manager, nav-server, remote-manager
  */
+import './agent/install-image-resize-reporting';
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, Tray } from 'electron';
 import { join, resolve, dirname, isAbsolute, basename } from 'path';
 import * as fs from 'fs';
@@ -69,6 +70,7 @@ import {
   type ScheduledTaskUpdateInput,
 } from './schedule/scheduled-task-manager';
 import { createScheduledTaskStore } from './schedule/scheduled-task-store';
+import { checkLocalCondition } from './schedule/local-condition-checker';
 import {
   buildScheduledTaskFallbackTitle,
   buildScheduledTaskTitle,
@@ -997,6 +999,7 @@ app
       const headlessScheduledTaskStore = createScheduledTaskStore(db);
       scheduledTaskManager = new ScheduledTaskManager({
         store: headlessScheduledTaskStore,
+        checkCondition: checkLocalCondition,
         executeTask: async (task) => {
           if (!sessionManager) {
             throw new Error('Session manager not initialized');
@@ -1177,9 +1180,22 @@ app
           validateWorkingDirectory: (cwd) => {
             return getWorkspacePathUnsupportedReason(cwd) || null;
           },
+          hasSession: (sessionId) => {
+            if (!sessionManager) throw new Error('Session manager not initialized');
+            return sessionManager.hasSession(sessionId);
+          },
         };
         remoteManager.setAgentExecutor(stdioAgentExecutor);
         remoteManager.setRendererCallback(headlessSendWithPermission);
+
+        // Cascade channel-binding cleanup when a session is deleted, so a
+        // deleted channel session cannot leave a stale in-memory binding.
+        headlessExtensionManager.register({
+          name: 'remote-session-binding',
+          onSessionDeleted: async ({ sessionId }) => {
+            await remoteManager.handleSessionDeleted(sessionId);
+          },
+        });
 
         const stdioChannel = await remoteManager.startStdioMode(headlessArgs.cwd);
 
@@ -1410,6 +1426,7 @@ app
     const scheduledTaskStore = createScheduledTaskStore(db);
     scheduledTaskManager = new ScheduledTaskManager({
       store: scheduledTaskStore,
+      checkCondition: checkLocalCondition,
       executeTask: async (task) => {
         if (!sessionManager) {
           throw new Error('Session manager not initialized');
@@ -1479,8 +1496,22 @@ app
         }
         return null;
       },
+      hasSession: (sessionId) => {
+        if (!sessionManager) throw new Error('Session manager not initialized');
+        return sessionManager.hasSession(sessionId);
+      },
     };
     remoteManager.setAgentExecutor(agentExecutor);
+
+    // Cascade channel-binding cleanup when a session is deleted from the
+    // desktop UI, so a deleted channel session cannot leave a stale in-memory
+    // binding (channel would otherwise keep failing until restart).
+    extensionManager.register({
+      name: 'remote-session-binding',
+      onSessionDeleted: async ({ sessionId }) => {
+        await remoteManager.handleSessionDeleted(sessionId);
+      },
+    });
 
     // 远程控制启用时启动
     if (remoteConfigStore.isEnabled()) {
@@ -3070,6 +3101,27 @@ ipcMain.handle('memory.clearCoreMemory', () => {
   return memoryService.clearCoreMemory();
 });
 
+ipcMain.handle('memory.getCoreEntries', () => {
+  if (!memoryService) {
+    throw new Error('Memory service not initialized');
+  }
+  return memoryService.getCoreEntries();
+});
+
+ipcMain.handle('memory.writeCoreEntry', (_event, combinedKey: string, value: string) => {
+  if (!memoryService) {
+    throw new Error('Memory service not initialized');
+  }
+  return memoryService.writeCoreEntry(combinedKey, value);
+});
+
+ipcMain.handle('memory.forgetCoreEntry', (_event, combinedKey: string) => {
+  if (!memoryService) {
+    throw new Error('Memory service not initialized');
+  }
+  return memoryService.forgetCoreEntry(combinedKey);
+});
+
 ipcMain.handle('memory.rebuildAll', async () => {
   if (!memoryService) {
     throw new Error('Memory service not initialized');
@@ -3235,6 +3287,9 @@ async function handleClientEvent(event: ClientEvent): Promise<unknown> {
 
     case 'session.delete':
       return sm.deleteSession(event.payload.sessionId);
+
+    case 'session.rename':
+      return sm.renameSession(event.payload.sessionId, event.payload.title);
 
     case 'session.batchDelete':
       return sm.batchDeleteSessions(event.payload.sessionIds);
