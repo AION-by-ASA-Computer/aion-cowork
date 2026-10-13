@@ -114,22 +114,88 @@ describe('MCP config with real electron-store file IO', () => {
     expect(readFileSync(configPath()).equals(before)).toBe(true);
   });
 
-  it('refuses edits of an unreadable collection and keeps the original file bytes', async () => {
-    writeDocument({ servers: 'not-json', extra: 'keep' });
-    const before = readFileSync(configPath());
-    const { mcpConfigStore } = await import('../src/main/mcp/mcp-config-store');
-    expect(mcpConfigStore.getServers()).toEqual([]);
-    expect(() => mcpConfigStore.getServersForSettings()).toThrow(/MCP_CONFIG_NEEDS_REPAIR/);
-    expect(() =>
+  it.each([{ servers: 'not-json' }, { servers: 42 }, { mcpServers: 42 }])(
+    'refuses edits of an unreadable collection and keeps the original file bytes (%j)',
+    async (document) => {
+      writeDocument({ ...document, extra: 'keep' });
+      const before = readFileSync(configPath());
+      const { mcpConfigStore } = await import('../src/main/mcp/mcp-config-store');
+      expect(mcpConfigStore.getServers()).toEqual([]);
+      expect(() => mcpConfigStore.getServersForSettings()).toThrow(/MCP_CONFIG_NEEDS_REPAIR/);
+      expect(() =>
+        mcpConfigStore.saveServer({
+          id: 'echo',
+          name: 'Echo',
+          type: 'stdio',
+          command: 'echo',
+          enabled: false,
+        })
+      ).toThrow(/JSON/i);
+      expect(() => mcpConfigStore.deleteServer('echo')).toThrow(/JSON/i);
+      expect(readFileSync(configPath()).equals(before)).toBe(true);
+    }
+  );
+
+  it.each([{ servers: null }, { mcpServers: null }])(
+    'allows adding to a null collection without rewriting it on read (%j)',
+    async (document) => {
+      writeDocument({ ...document, extra: 'keep' });
+      const before = readFileSync(configPath());
+      const { mcpConfigStore } = await import('../src/main/mcp/mcp-config-store');
+      expect(mcpConfigStore.getServersForSettings()).toEqual([]);
+      expect(readFileSync(configPath()).equals(before)).toBe(true);
       mcpConfigStore.saveServer({
         id: 'echo',
         name: 'Echo',
         type: 'stdio',
         command: 'echo',
         enabled: false,
-      })
-    ).toThrow(/JSON/i);
-    expect(() => mcpConfigStore.deleteServer('echo')).toThrow(/JSON/i);
+      });
+      expect(mcpConfigStore.getServer('echo')?.name).toBe('Echo');
+      expect(readDocument().extra).toBe('keep');
+      mcpConfigStore.deleteServer('echo');
+      expect(readDocument().servers).toEqual([]);
+      expect(readDocument().extra).toBe('keep');
+    }
+  );
+
+  it('adopts a Claude collection beside null servers without changing either field on read', async () => {
+    writeDocument({ servers: null, mcpServers: { Echo: valid, mystery: unknown } });
+    const before = readFileSync(configPath());
+    const { mcpConfigStore } = await import('../src/main/mcp/mcp-config-store');
+    expect(mcpConfigStore.getServersForSettings()).toHaveLength(1);
     expect(readFileSync(configPath()).equals(before)).toBe(true);
+  });
+
+  it('persists and edits __proto__ as an own map entry instead of mutating the prototype', async () => {
+    writeDocument({ mcpServers: { mystery: unknown } });
+    const { mcpConfigStore } = await import('../src/main/mcp/mcp-config-store');
+    const server = {
+      id: 'proto-entry',
+      name: '__proto__',
+      type: 'stdio' as const,
+      command: 'echo',
+      enabled: false,
+    };
+    mcpConfigStore.saveServer(server);
+    const collection = readDocument().mcpServers as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(collection, '__proto__')).toBe(true);
+    expect(collection['__proto__']).toEqual(server);
+    expect(mcpConfigStore.getServer(server.id)?.name).toBe('__proto__');
+    mcpConfigStore.saveServer({ ...server, enabled: true });
+    expect(mcpConfigStore.getServer(server.id)?.enabled).toBe(true);
+    mcpConfigStore.deleteServer(server.id);
+    expect(readDocument().mcpServers).toEqual({ mystery: unknown });
+  });
+
+  it('updates and deletes a recognized entry whose stored map key is empty', async () => {
+    writeDocument({ mcpServers: { '': valid, mystery: unknown } });
+    const { mcpConfigStore } = await import('../src/main/mcp/mcp-config-store');
+    const server = mcpConfigStore.getServers()[0];
+    mcpConfigStore.saveServer({ ...server, enabled: false });
+    const collection = readDocument().mcpServers as Record<string, { enabled: boolean }>;
+    expect(collection[''].enabled).toBe(false);
+    mcpConfigStore.deleteServer(server.id);
+    expect(readDocument().mcpServers).toEqual({ mystery: unknown });
   });
 });

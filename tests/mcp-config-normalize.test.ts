@@ -28,6 +28,28 @@ function legacySettingsConnectorsRender(servers: unknown) {
 }
 
 describe('MCP config normalization (issue #216)', () => {
+  it.each([
+    JSON.parse('{"__proto__":"keep"}') as Record<string, string>,
+    ['__proto__=keep'],
+    [{ key: '__proto__', value: 'keep' }],
+  ])('preserves special env and header keys as data (%j)', (record) => {
+    const result = normalizeMcpConfigDocument({
+      servers: [
+        {
+          name: 'Echo',
+          command: 'echo',
+          env: record,
+          headers: record,
+        },
+      ],
+    });
+    const server = result.servers[0];
+    expect(Object.prototype.hasOwnProperty.call(server.env, '__proto__')).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(server.headers, '__proto__')).toBe(true);
+    expect(server.env?.['__proto__']).toBe('keep');
+    expect(server.headers?.['__proto__']).toBe('keep');
+  });
+
   it('would have crashed the settings list on an agent-installed Tavily map', () => {
     const document = loadFixture('mcp-config-agent-tavily.json') as { servers: unknown };
     expect(() => legacySettingsConnectorsRender(document.servers)).toThrow();

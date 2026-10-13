@@ -145,11 +145,11 @@ function normalizeStringRecord(raw: unknown): {
     for (const item of raw) {
       if (typeof item === 'string' && item.includes('=')) {
         const eq = item.indexOf('=');
-        record[item.slice(0, eq)] = item.slice(eq + 1);
+        setMapEntry(record, item.slice(0, eq), item.slice(eq + 1));
       } else if (isPlainObject(item)) {
         const key = nonEmptyString(item.key) ?? nonEmptyString(item.name);
         if (key) {
-          record[key] = item.value == null ? '' : String(item.value);
+          setMapEntry(record, key, item.value == null ? '' : String(item.value));
         }
       }
     }
@@ -161,7 +161,7 @@ function normalizeStringRecord(raw: unknown): {
       if (value == null) {
         continue;
       }
-      record[key] = String(value);
+      setMapEntry(record, key, String(value));
     }
     return { record, repaired: false };
   }
@@ -283,8 +283,8 @@ function resolveMcpServerCollection(raw: unknown): ResolveMcpServerCollectionRes
     return { status: 'unknown' };
   }
 
-  const serversField = parsed.servers;
-  const mcpServersField = parsed.mcpServers ?? parsed.mcp_servers;
+  const serversField = parsed.servers ?? undefined;
+  const mcpServersField = parsed.mcpServers ?? parsed.mcp_servers ?? undefined;
   const mcpFieldName: McpConfigFieldName | undefined =
     parsed.mcpServers != null
       ? 'mcpServers'
@@ -595,6 +595,16 @@ function blockedWrite(resolved: ResolveMcpServerCollectionResult): McpConfigWrit
   return { ok: false, changed: false, error: UNSUPPORTED_DOCUMENT_ERROR };
 }
 
+function setMapEntry(container: Record<string, unknown>, key: string, entry: unknown): void {
+  // Map keys are data, including __proto__ and empty-string keys.
+  Object.defineProperty(container, key, {
+    value: entry,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+}
+
 function putEntry(
   collection: McpServerCollection,
   container: unknown[] | Record<string, unknown>,
@@ -606,8 +616,8 @@ function putEntry(
     (container as unknown[])[index] = entry;
     return;
   }
-  if (key) {
-    (container as Record<string, unknown>)[key] = entry;
+  if (key !== undefined) {
+    setMapEntry(container as Record<string, unknown>, key, entry);
   }
 }
 
@@ -621,7 +631,7 @@ function removeEntry(
     (container as unknown[]).splice(index, 1);
     return;
   }
-  if (key) {
+  if (key !== undefined) {
     delete (container as Record<string, unknown>)[key];
   }
 }
@@ -649,7 +659,11 @@ export function upsertServerInMcpDocument(
     if (collection.shape === 'array') {
       (container as unknown[]).push(server);
     } else {
-      (container as Record<string, unknown>)[allocateMapKey(collection.entries, server)] = server;
+      setMapEntry(
+        container as Record<string, unknown>,
+        allocateMapKey(collection.entries, server),
+        server
+      );
     }
     return {
       ok: true,
