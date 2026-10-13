@@ -38,6 +38,7 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
   const [tools, setTools] = useState<MCPToolInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [configNeedsRepair, setConfigNeedsRepair] = useState(false);
   const [editingServer, setEditingServer] = useState<MCPServerConfig | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [presets, setPresets] = useState<Record<string, MCPPreset>>({});
@@ -67,21 +68,18 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
 
   const loadServers = useCallback(async () => {
     try {
-      const loaded = await window.electronAPI.mcp.getServers();
+      const loaded = await window.electronAPI.mcp.getServersForSettings();
       const normalized = normalizeMcpConfigInput(loaded);
       setServers(normalized.servers);
-      setError(normalized.error ? tRef.current('mcp.configNeedsRepair') : '');
+      setConfigNeedsRepair(Boolean(normalized.error));
+      setError('');
     } catch (err) {
       console.error('Failed to load servers:', err);
       setServers([]);
       const message = err instanceof Error ? err.message : String(err);
-      setError(
-        tRef.current(
-          message.includes('MCP_CONFIG_NEEDS_REPAIR')
-            ? 'mcp.configNeedsRepair'
-            : 'mcp.loadServersFailed'
-        )
-      );
+      const needsRepair = message.includes('MCP_CONFIG_NEEDS_REPAIR');
+      setConfigNeedsRepair(needsRepair);
+      setError(needsRepair ? '' : tRef.current('mcp.loadServersFailed'));
     }
   }, []);
 
@@ -122,6 +120,7 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
   }, [isActive, loadAll, loadStatuses, loadTools]);
 
   async function handleAddPreset(presetKey: string) {
+    if (configNeedsRepair) return;
     const preset = presetMap[presetKey];
     if (!preset) return;
 
@@ -173,6 +172,7 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
   }
 
   async function handleSaveServer(server: MCPServerConfig) {
+    if (configNeedsRepair) return;
     setIsLoading(true);
     setError('');
     try {
@@ -193,6 +193,7 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
   }
 
   async function handleDeleteServer(serverId: string) {
+    if (configNeedsRepair) return;
     if (!confirm(t('mcp.deleteConnectorConfirm'))) return;
     setIsLoading(true);
     try {
@@ -219,6 +220,12 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
 
   return (
     <div className="space-y-4">
+      {configNeedsRepair && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-error/10 text-error text-sm">
+          <AlertCircle className="w-4 h-4" />
+          {t('mcp.configNeedsRepair')}
+        </div>
+      )}
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-error/10 text-error text-sm">
           <AlertCircle className="w-4 h-4" />
@@ -235,7 +242,7 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
             setShowAddForm(false);
             setEditingServer(null);
           }}
-          isLoading={isLoading}
+          isLoading={isLoading || configNeedsRepair}
         />
       )}
 
@@ -243,7 +250,8 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
       {!showAddForm && !editingServer && (
         <div className="space-y-3">
           {serverList.length === 0
-            ? !error && (
+            ? !error &&
+              !configNeedsRepair && (
                 <div className="rounded-lg border border-border-subtle bg-background text-center py-8 text-text-muted">
                   <Plug className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p>{t('mcp.noConnectors')}</p>
@@ -329,6 +337,7 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
               }
               disabled={
                 isLoading ||
+                configNeedsRepair ||
                 configuringPreset.preset.requiresEnv?.some(
                   (key: string) => !presetEnvValues[key]?.trim()
                 )
@@ -400,7 +409,7 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
                       ) : (
                         <button
                           onClick={() => handleAddPreset(key)}
-                          disabled={isLoading}
+                          disabled={isLoading || configNeedsRepair}
                           className="px-3 py-1.5 rounded-md bg-accent text-white text-xs font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center gap-1"
                         >
                           <Plus className="w-3.5 h-3.5" />
@@ -419,6 +428,7 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
       {!showAddForm && !editingServer && (
         <button
           onClick={() => setShowAddForm(true)}
+          disabled={configNeedsRepair}
           className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-border hover:border-accent hover:bg-accent/5 transition-all flex items-center justify-center gap-2 text-text-secondary hover:text-accent"
         >
           <Plus className="w-5 h-5" />

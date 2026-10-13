@@ -17,6 +17,7 @@ import '../src/renderer/i18n/config';
 
 interface McpTestApi {
   getServers: ReturnType<typeof vi.fn>;
+  getServersForSettings: ReturnType<typeof vi.fn>;
   getPresets: ReturnType<typeof vi.fn>;
   getServerStatus: ReturnType<typeof vi.fn>;
   getTools: ReturnType<typeof vi.fn>;
@@ -28,6 +29,7 @@ interface McpTestApi {
 const mcp = vi.hoisted(() => {
   const api: McpTestApi = {
     getServers: vi.fn(),
+    getServersForSettings: vi.fn(),
     getPresets: vi.fn(),
     getServerStatus: vi.fn(),
     getTools: vi.fn(),
@@ -138,7 +140,7 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
   });
 
   it('renders connector cards when IPC returns an agent-installed servers map', async () => {
-    mcp.getServers.mockResolvedValue(loadFixture('mcp-config-agent-tavily.json'));
+    mcp.getServersForSettings.mockResolvedValue(loadFixture('mcp-config-agent-tavily.json'));
 
     render(createElement(SettingsConnectors, { isActive: true }));
 
@@ -150,7 +152,7 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
 
   it('renders connector cards when IPC returns servers as a JSON string', async () => {
     const tavilyDocument = loadFixture('mcp-config-agent-tavily.json') as { servers: unknown };
-    mcp.getServers.mockResolvedValue({
+    mcp.getServersForSettings.mockResolvedValue({
       servers: JSON.stringify(tavilyDocument.servers),
     });
 
@@ -161,7 +163,9 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
   });
 
   it('renders mixed agent-installed rows that used to crash type and args formatting', async () => {
-    mcp.getServers.mockResolvedValue(loadFixture('mcp-config-mixed-agent-installed.json'));
+    mcp.getServersForSettings.mockResolvedValue(
+      loadFixture('mcp-config-mixed-agent-installed.json')
+    );
 
     render(createElement(SettingsConnectors, { isActive: true }));
 
@@ -173,7 +177,7 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
 
   it('renders Claude mcpServers when the payload also has an empty servers array', async () => {
     const document = loadFixture('mcp-config-claude-mcpServers.json') as Record<string, unknown>;
-    mcp.getServers.mockResolvedValue({ servers: [], ...document });
+    mcp.getServersForSettings.mockResolvedValue({ servers: [], ...document });
 
     render(createElement(SettingsConnectors, { isActive: true }));
 
@@ -183,7 +187,7 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
   });
 
   it('ignores malformed individual presets when the preset list is expanded', async () => {
-    mcp.getServers.mockResolvedValue(loadFixture('mcp-config-agent-tavily.json'));
+    mcp.getServersForSettings.mockResolvedValue(loadFixture('mcp-config-agent-tavily.json'));
     mcp.getPresets.mockResolvedValue({
       echo: { name: 'Echo', type: 'stdio', command: 'echo', args: ['hello'] },
       bad: null,
@@ -202,7 +206,7 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
   it.each([{ servers: 'not-json' }, { mcpServers: 42 }])(
     'shows a repair message instead of an empty configuration for %j',
     async (document) => {
-      mcp.getServers.mockResolvedValue(document);
+      mcp.getServersForSettings.mockResolvedValue(document);
       render(createElement(SettingsConnectors, { isActive: true }));
       expect(await screen.findByText(/existing configuration has been preserved/i)).toBeTruthy();
       expect(screen.queryByText('No connectors configured')).toBeNull();
@@ -210,7 +214,7 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
   );
 
   it('surfaces a configuration repair error rejected by the real IPC read path', async () => {
-    mcp.getServers.mockRejectedValue(
+    mcp.getServersForSettings.mockRejectedValue(
       new Error('Error invoking remote method: MCP_CONFIG_NEEDS_REPAIR')
     );
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -218,6 +222,35 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
     expect(await screen.findByText(/existing configuration has been preserved/i)).toBeTruthy();
     expect(screen.queryByText('No connectors configured')).toBeNull();
     consoleError.mockRestore();
+  });
+
+  it('keeps repair guidance visible, prevents writes, and unlocks after a successful reread', async () => {
+    mcp.getServers.mockResolvedValue([]);
+    mcp.getServersForSettings.mockResolvedValue({ servers: 'not-json' });
+    mcp.getPresets.mockResolvedValue({ echo: { name: 'Echo', type: 'stdio', command: 'echo' } });
+    const view = render(createElement(SettingsConnectors, { isActive: true }));
+    expect(await screen.findByText(/existing configuration has been preserved/i)).toBeTruthy();
+    expect(await screen.findByText('Echo')).toBeTruthy();
+    const custom = screen.getByRole('button', {
+      name: 'Add Custom Connector',
+    }) as HTMLButtonElement;
+    const preset = screen.getByRole('button', { name: 'Add', exact: true }) as HTMLButtonElement;
+    expect(custom.disabled).toBe(true);
+    expect(preset.disabled).toBe(true);
+    fireEvent.click(custom);
+    fireEvent.click(preset);
+    expect(screen.getByText(/existing configuration has been preserved/i)).toBeTruthy();
+    expect(mcp.saveServer).not.toHaveBeenCalled();
+    expect(mcp.getServers).not.toHaveBeenCalled();
+
+    view.rerender(createElement(SettingsConnectors, { isActive: false }));
+    mcp.getServersForSettings.mockResolvedValue(loadFixture('mcp-config-agent-tavily.json'));
+    view.rerender(createElement(SettingsConnectors, { isActive: true }));
+    expect(await screen.findByText('tavily-mcp')).toBeTruthy();
+    expect(screen.queryByText(/existing configuration has been preserved/i)).toBeNull();
+    expect(
+      (screen.getByRole('button', { name: 'Add Custom Connector' }) as HTMLButtonElement).disabled
+    ).toBe(false);
   });
 
   it('shows the connectors fallback after a render error and recovers on Retry', () => {
