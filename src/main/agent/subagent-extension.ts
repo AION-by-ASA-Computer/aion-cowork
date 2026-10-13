@@ -18,6 +18,7 @@ import { getSharedAuthStorage, ModelRegistry } from './shared-auth';
 import { MCPManager } from '../mcp/mcp-manager';
 import { configStore } from '../config/config-store';
 import { log, logError } from '../utils/logger';
+import { wrapReadToolForImageResizeErrors } from './image-resize-packaging';
 import {
   resolvePiRegistryModel,
   resolvePiRouteProtocol,
@@ -354,14 +355,16 @@ function createSpawnSubagentTool(
         mcpCustomTools = mcpCustomTools.filter(
           (tool) => isAllowed(tool.name) && tool.name !== 'spawn_subagent'
         );
-        const codingTools = [
-          ...new Map(
-            [...createCodingTools(cwd), ...createReadOnlyTools(cwd)].map((tool) => [
-              tool.name,
-              tool,
-            ])
-          ).values(),
-        ].filter((tool) => isAllowed(tool.name));
+        const codingTools = wrapReadToolForImageResizeErrors(
+          [
+            ...new Map(
+              [...createCodingTools(cwd), ...createReadOnlyTools(cwd)].map((tool) => [
+                tool.name,
+                tool,
+              ])
+            ).values(),
+          ].filter((tool) => isAllowed(tool.name))
+        );
 
         const childSystemPrompt = buildChildSystemPrompt(task, result_format, preset?.prompt);
         const resourceLoader = new DefaultResourceLoader({
