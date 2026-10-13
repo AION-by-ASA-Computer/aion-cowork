@@ -516,6 +516,7 @@
     "envValuePlaceholder": "Enter value",
     "removeVar": "Remove",
     "loadServersFailed": "Failed to load connectors",
+    "configNeedsRepair": "The MCP configuration could not be read. Your existing configuration has been preserved. Repair mcp-config.json before saving changes.",
     "saveServerFailed": "Failed to save connector",
     "deleteServerFailed": "Failed to delete connector",
     "deleteConnectorConfirm": "Delete this connector?",

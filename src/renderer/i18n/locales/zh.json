@@ -516,6 +516,7 @@
     "envValuePlaceholder": "输入值",
     "removeVar": "移除",
     "loadServersFailed": "加载连接器失败",
+    "configNeedsRepair": "无法读取 MCP 配置，原有配置已保留。请先修复 mcp-config.json，再保存更改。",
     "saveServerFailed": "保存连接器失败",
     "deleteServerFailed": "删除连接器失败",
     "deleteConnectorConfirm": "确认删除这个连接器？",

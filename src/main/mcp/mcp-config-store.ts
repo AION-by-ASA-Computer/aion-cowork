@@ -107,16 +107,20 @@ class MCPConfigStore {
    */
   getServers(): MCPServerConfig[] {
     try {
-      const document = this.readStoreDocument();
-      const normalized = normalizeMcpConfigDocument(document);
-      if (normalized.error) {
-        logError('[MCPConfigStore] MCP config could not be normalized:', normalized.error);
-      }
-      return normalized.servers;
+      return this.getServersForSettings();
     } catch (error) {
       logError('[MCPConfigStore] Failed to read MCP servers, returning empty list:', error);
       return [];
     }
+  }
+
+  /** Settings must distinguish an unreadable configuration from an empty one. */
+  getServersForSettings(): MCPServerConfig[] {
+    const normalized = normalizeMcpConfigDocument(this.readStoreDocument());
+    if (normalized.error) {
+      throw new Error(`MCP_CONFIG_NEEDS_REPAIR: ${normalized.error}`);
+    }
+    return normalized.servers;
   }
 
   private readStoreDocument(): unknown {

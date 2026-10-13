@@ -815,5 +815,10 @@ export function normalizeMcpToolList(
 }
 
 export function normalizeMcpPresetMap<T>(raw: unknown): Record<string, T> {
-  return isPlainObject(raw) ? (raw as Record<string, T>) : {};
+  if (!isPlainObject(raw)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => isPlainObject(value))
+  ) as Record<string, T>;
 }

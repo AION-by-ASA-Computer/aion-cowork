@@ -119,6 +119,7 @@ describe('MCP config with real electron-store file IO', () => {
     const before = readFileSync(configPath());
     const { mcpConfigStore } = await import('../src/main/mcp/mcp-config-store');
     expect(mcpConfigStore.getServers()).toEqual([]);
+    expect(() => mcpConfigStore.getServersForSettings()).toThrow(/MCP_CONFIG_NEEDS_REPAIR/);
     expect(() =>
       mcpConfigStore.saveServer({
         id: 'echo',

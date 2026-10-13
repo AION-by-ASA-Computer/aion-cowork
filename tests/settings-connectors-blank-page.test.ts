@@ -182,6 +182,44 @@ describe('Settings MCP Connectors blank-page regression (#216)', () => {
     expect(screen.getByText('https://mcp.tavily.com/mcp/?tavilyApiKey=tvly-test-key')).toBeTruthy();
   });
 
+  it('ignores malformed individual presets when the preset list is expanded', async () => {
+    mcp.getServers.mockResolvedValue(loadFixture('mcp-config-agent-tavily.json'));
+    mcp.getPresets.mockResolvedValue({
+      echo: { name: 'Echo', type: 'stdio', command: 'echo', args: ['hello'] },
+      bad: null,
+      text: 'not-a-preset',
+      list: ['not-a-preset'],
+    });
+    render(createElement(SettingsConnectors, { isActive: true }));
+    expect(await screen.findByText('tavily-mcp')).toBeTruthy();
+    expect(await screen.findByText('Echo')).toBeTruthy();
+    fireEvent.click(screen.getByText('Hide'));
+    fireEvent.click(await screen.findByText('Show'));
+    expect(await screen.findByText('Echo')).toBeTruthy();
+    expect(screen.queryByText('not-a-preset')).toBeNull();
+  });
+
+  it.each([{ servers: 'not-json' }, { mcpServers: 42 }])(
+    'shows a repair message instead of an empty configuration for %j',
+    async (document) => {
+      mcp.getServers.mockResolvedValue(document);
+      render(createElement(SettingsConnectors, { isActive: true }));
+      expect(await screen.findByText(/existing configuration has been preserved/i)).toBeTruthy();
+      expect(screen.queryByText('No connectors configured')).toBeNull();
+    }
+  );
+
+  it('surfaces a configuration repair error rejected by the real IPC read path', async () => {
+    mcp.getServers.mockRejectedValue(
+      new Error('Error invoking remote method: MCP_CONFIG_NEEDS_REPAIR')
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(createElement(SettingsConnectors, { isActive: true }));
+    expect(await screen.findByText(/existing configuration has been preserved/i)).toBeTruthy();
+    expect(screen.queryByText('No connectors configured')).toBeNull();
+    consoleError.mockRestore();
+  });
+
   it('shows the connectors fallback after a render error and recovers on Retry', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 

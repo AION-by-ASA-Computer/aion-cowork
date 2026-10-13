@@ -68,12 +68,20 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
   const loadServers = useCallback(async () => {
     try {
       const loaded = await window.electronAPI.mcp.getServers();
-      setServers(normalizeMcpConfigInput(loaded).servers);
-      setError('');
+      const normalized = normalizeMcpConfigInput(loaded);
+      setServers(normalized.servers);
+      setError(normalized.error ? tRef.current('mcp.configNeedsRepair') : '');
     } catch (err) {
       console.error('Failed to load servers:', err);
       setServers([]);
-      setError(tRef.current('mcp.loadServersFailed'));
+      const message = err instanceof Error ? err.message : String(err);
+      setError(
+        tRef.current(
+          message.includes('MCP_CONFIG_NEEDS_REPAIR')
+            ? 'mcp.configNeedsRepair'
+            : 'mcp.loadServersFailed'
+        )
+      );
     }
   }, []);
 
@@ -234,32 +242,32 @@ export function SettingsConnectors({ isActive }: { isActive: boolean }) {
       {/* Server List */}
       {!showAddForm && !editingServer && (
         <div className="space-y-3">
-          {serverList.length === 0 ? (
-            <div className="rounded-lg border border-border-subtle bg-background text-center py-8 text-text-muted">
-              <Plug className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p>{t('mcp.noConnectors')}</p>
-              <p className="text-sm mt-1">{t('mcp.addConnector')}</p>
-            </div>
-          ) : (
-            serverList.map((server, index) => {
-              const status = getServerStatus(server.id);
-              const serverTools = getServerTools(server.id);
+          {serverList.length === 0
+            ? !error && (
+                <div className="rounded-lg border border-border-subtle bg-background text-center py-8 text-text-muted">
+                  <Plug className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p>{t('mcp.noConnectors')}</p>
+                  <p className="text-sm mt-1">{t('mcp.addConnector')}</p>
+                </div>
+              )
+            : serverList.map((server, index) => {
+                const status = getServerStatus(server.id);
+                const serverTools = getServerTools(server.id);
 
-              return (
-                <ServerCard
-                  key={server.id || `mcp-server-${index}`}
-                  server={server}
-                  status={status}
-                  toolCount={serverTools.length}
-                  tools={serverTools}
-                  onEdit={() => setEditingServer(server)}
-                  onDelete={() => handleDeleteServer(server.id)}
-                  onToggleEnabled={() => handleToggleEnabled(server)}
-                  isLoading={isLoading}
-                />
-              );
-            })
-          )}
+                return (
+                  <ServerCard
+                    key={server.id || `mcp-server-${index}`}
+                    server={server}
+                    status={status}
+                    toolCount={serverTools.length}
+                    tools={serverTools}
+                    onEdit={() => setEditingServer(server)}
+                    onDelete={() => handleDeleteServer(server.id)}
+                    onToggleEnabled={() => handleToggleEnabled(server)}
+                    isLoading={isLoading}
+                  />
+                );
+              })}
         </div>
       )}
 
