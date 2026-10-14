@@ -1,6 +1,6 @@
 appId: com.opencowork.app
-productName: Open Cowork
-copyright: Copyright © 2026 Open Cowork Team
+productName: AION Cowork
+copyright: Copyright © 2026 ASA Computer
 
 directories:
   output: release
@@ -101,8 +101,8 @@ mac:
   entitlementsInherit: resources/entitlements.mac.plist
   extendInfo:
     LSApplicationCategoryType: public.app-category.developer-tools
-    NSScreenCaptureUsageDescription: 'Open Cowork needs screen recording access for GUI automation.'
-    NSAccessibilityUsageDescription: 'Open Cowork needs accessibility access for GUI automation.'
+    NSScreenCaptureUsageDescription: 'AION Cowork needs screen recording access for GUI automation.'
+    NSAccessibilityUsageDescription: 'AION Cowork needs accessibility access for GUI automation.'
   extraResources:
     - from: .bundle-resources/mcp
       to: mcp
@@ -160,7 +160,7 @@ dmg:
   contents:
     - x: 150
       y: 220
-      name: 'Open Cowork.app'
+      name: 'AION Cowork.app'
     - x: 450
       y: 220
       type: link
@@ -172,5 +172,5 @@ extraMetadata:
 
 publish:
   provider: github
-  owner: OpenCoworkAI
-  repo: open-cowork
+  owner: AION-by-ASA-Computer
+  repo: aion-cowork

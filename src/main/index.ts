@@ -296,8 +296,8 @@ if (!hasSingleInstanceLock) {
 
 // Tray instance (kept alive to prevent GC)
 let tray: Tray | null = null;
-const DARK_BG = '#171614';
-const LIGHT_BG = '#f5f3ee';
+const DARK_BG = '#161618';
+const LIGHT_BG = '#ffffff';
 
 function buildMacMenu() {
   if (process.platform !== 'darwin') return;
@@ -385,7 +385,7 @@ function setupTray() {
   }
 
   tray = new Tray(resolvedIconPath);
-  tray.setToolTip('Open Cowork');
+  tray.setToolTip('AION Cowork');
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -1308,7 +1308,7 @@ app
     startConfigFileWatcher();
 
     // Log environment variables for debugging
-    log('=== Open Cowork Starting ===');
+    log('=== AION Cowork Starting ===');
     log('Config file:', configStore.getPath());
     log('Is configured:', configStore.isConfigured());
     log('[Runtime] Using Open Cowork agent SDK for all providers');
@@ -1513,8 +1513,10 @@ app
       },
     });
 
-    // 远程控制启用时启动
-    if (remoteConfigStore.isEnabled()) {
+    // Remote control (Feishu/Slack gateway) is not exposed in AION Cowork: its settings tab is
+    // hidden, so never auto-start it from a stale config. Flip REMOTE_CONTROL_AVAILABLE to restore.
+    const REMOTE_CONTROL_AVAILABLE = false;
+    if (REMOTE_CONTROL_AVAILABLE && remoteConfigStore.isEnabled()) {
       remoteManager.start().catch((error) => {
         logError('[App] Failed to start remote control:', error);
       });
@@ -1530,7 +1532,7 @@ app
   .catch((error) => {
     logError('[App] Startup failed:', error);
     const message = error instanceof Error ? error.message : 'Unknown startup error';
-    dialog.showErrorBox('Open Cowork 启动失败', `${message}\n\n请查看日志获取更多信息。`);
+    dialog.showErrorBox('AION Cowork failed to start', `${message}\n\nSee the logs for more information.`);
     app.quit();
   });
 
@@ -2661,7 +2663,7 @@ ipcMain.handle('logs.export', async () => {
     // Show save dialog
     const result = await dialog.showSaveDialog(mainWindow!, {
       title: 'Export Logs',
-      defaultPath: `opencowork-logs-${new Date().toISOString().split('T')[0]}.zip`,
+      defaultPath: `aion-cowork-logs-${new Date().toISOString().split('T')[0]}.zip`,
       filters: [
         { name: 'ZIP Archive', extensions: ['zip'] },
         { name: 'All Files', extensions: ['*'] },
@@ -2738,7 +2740,7 @@ ipcMain.handle('logs.export', async () => {
       });
       archive.append(
         [
-          'Open Cowork diagnostic bundle',
+          'AION Cowork diagnostic bundle',
           `Exported at: ${diagnosticsSummary.exportedAt}`,
           '',
           'Included files:',
@@ -3244,7 +3246,7 @@ async function handleClientEvent(event: ClientEvent): Promise<unknown> {
     sendToRenderer({
       type: 'error',
       payload: {
-        message: '当前方案未配置可用凭证，请先在 API 设置中完成配置',
+        message: 'The current configuration set has no usable credentials. Finish setup in API Settings first.',
         code: 'CONFIG_REQUIRED_ACTIVE_SET',
         action: 'open_api_settings',
       },

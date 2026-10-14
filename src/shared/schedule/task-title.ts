@@ -1,7 +1,8 @@
-const SCHEDULE_TITLE_PREFIX = '[定时任务]';
-const EMPTY_TITLE_FALLBACK = '未命名任务';
+const SCHEDULE_TITLE_PREFIX = '[Scheduled Task]';
+const EMPTY_TITLE_FALLBACK = 'Untitled task';
 const DEFAULT_SUMMARY_MAX_LENGTH = 48;
-const PREFIX_PATTERN = /^\s*\[定时任务\]\s*/;
+// Also strips the legacy prefix so titles saved by older builds are not double-prefixed.
+const PREFIX_PATTERN = /^\s*\[(?:Scheduled Task|定时任务)\]\s*/;
 
 function normalizeTitlePart(value: string): string {
   return value

@@ -3,31 +3,32 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 import enTranslations from './locales/en.json';
-import zhTranslations from './locales/zh.json';
+import itTranslations from './locales/it.json';
 
 i18n
-  .use(LanguageDetector) // 自动检测浏览器语言
-  .use(initReactI18next) // 初始化 react-i18next
+  .use(LanguageDetector) // Detect the browser language automatically
+  .use(initReactI18next)
   .init({
     resources: {
       en: {
         translation: enTranslations,
       },
-      zh: {
-        translation: zhTranslations,
+      it: {
+        translation: itTranslations,
       },
     },
-    fallbackLng: 'en', // 默认语言
-    supportedLngs: ['en', 'zh'], // 支持的语言
+    fallbackLng: 'en',
+    supportedLngs: ['en', 'it'],
+    nonExplicitSupportedLngs: true, // map it-IT -> it, en-US -> en
     interpolation: {
-      escapeValue: false, // React 已经处理了 XSS
+      escapeValue: false, // React already escapes values
     },
-    pluralSeparator: '_', // 复数分隔符
-    contextSeparator: '_', // 上下文分隔符
+    pluralSeparator: '_',
+    contextSeparator: '_',
     detection: {
-      order: ['localStorage', 'navigator'], // 先检查 localStorage，再检查浏览器语言
-      caches: ['localStorage'], // 将语言选择保存到 localStorage
-      lookupLocalStorage: 'i18nextLng', // localStorage key
+      order: ['localStorage', 'navigator'], // saved choice first, then browser language
+      caches: ['localStorage'],
+      lookupLocalStorage: 'i18nextLng',
     },
   });
 

@@ -1780,10 +1780,10 @@ async function executeCliclick(command: string): Promise<{ stdout: string; stder
     // Treat this as a hard failure to avoid reporting false-positive click success.
     if (/Accessibility privileges not enabled/i.test(result.stderr || '')) {
       const hint =
-        '\n\nmacOS 权限提示 / Permissions:\n' +
-        '- System Settings → Privacy & Security → Accessibility：允许 Open Cowork\n' +
-        '- 如果是终端运行：允许 Terminal/iTerm\n' +
-        '- 授权后请重启 Open Cowork 再重试\n';
+        '\n\nmacOS permissions:\n' +
+        '- System Settings → Privacy & Security → Accessibility: allow AION Cowork\n' +
+        '- If running from a terminal: allow Terminal/iTerm\n' +
+        '- Restart AION Cowork after granting access and try again\n';
       throw new Error(
         `cliclick cannot control UI because Accessibility permission is not enabled.${hint}`
       );
@@ -1793,9 +1793,9 @@ async function executeCliclick(command: string): Promise<{ stdout: string; stder
   } catch (error: unknown) {
     const baseMessage = error instanceof Error ? error.message : String(error);
     const hint =
-      '\n\nmacOS 权限提示 / Permissions:\n' +
-      '- System Settings → Privacy & Security → Accessibility：允许 Open Cowork\n' +
-      '- System Settings → Privacy & Security → Automation：允许 Open Cowork 控制 “System Events”\n';
+      '\n\nmacOS permissions:\n' +
+      '- System Settings → Privacy & Security → Accessibility: allow AION Cowork\n' +
+      '- System Settings → Privacy & Security → Automation: allow AION Cowork to control "System Events"\n';
     throw new Error(`${baseMessage}${hint}`);
   }
 }
@@ -3817,9 +3817,9 @@ async function takeScreenshot(
   } catch (error: unknown) {
     const baseMessage = error instanceof Error ? error.message : String(error);
     const hint =
-      '\n\nmacOS 权限提示 / Permissions:\n' +
-      '- System Settings → Privacy & Security → Screen Recording：允许 Open Cowork\n' +
-      '- 重新启动应用后再试 / Restart the app and try again\n';
+      '\n\nmacOS permissions:\n' +
+      '- System Settings → Privacy & Security → Screen Recording: allow AION Cowork\n' +
+      '- Restart the app and try again\n';
     throw new Error(`${baseMessage}${hint}`);
   }
 
@@ -4973,13 +4973,13 @@ async function analyzeScreenshotWithVision(
     // Get image dimensions
     const imageDims = await getImageDimensions(annotatedPath);
 
-    const prompt = `给我${elementDescription}的grounding坐标。
+    const prompt = `Give me the grounding coordinates of ${elementDescription}.
 
-**注意**：图片上可能有黄色圆圈标记，这些是之前点击过的位置（仅用于相对位置参考，它们并不一定是正确的点击位置），标记格式为"#序号"和已经归一化之后的"[y,x]"坐标。这些标记不是界面的一部分，请忽略它们，只定位实际的界面元素。
+**Note**: the image may contain yellow circle markers. These are previously clicked positions (a relative-position reference only; they are not necessarily the correct click position), labeled "#index" with normalized "[y,x]" coordinates. These markers are not part of the UI: ignore them and locate only the actual interface element.
 
-坐标格式：归一化到0-1000，格式为[ymin, xmin, ymax, xmax]
+Coordinate format: normalized to 0-1000, as [ymin, xmin, ymax, xmax]
 
-返回JSON（不要markdown）:
+Return JSON (no markdown):
 {"box_2d": [ymin, xmin, ymax, xmax], "confidence": <0-100>}`;
 
     writeMCPLog(`[analyzeScreenshotWithVision] Prompt: ${prompt}`);

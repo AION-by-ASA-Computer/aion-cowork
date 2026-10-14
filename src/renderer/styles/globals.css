@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,52 +7,52 @@
 @layer base {
   /* Define CSS variables for theming */
   :root {
-    /* Dark theme (default) — Claude warm palette */
-    --color-background: #171614;
-    --color-background-secondary: #1d1b18;
-    --color-surface: #22201d;
-    --color-surface-hover: #2a2723;
-    --color-surface-active: #33302b;
-    --color-surface-muted: #1b1916;
-    --color-border: #34302a;
-    --color-border-muted: #2a2722;
-    --color-border-subtle: rgba(255, 245, 232, 0.07);
+    /* Dark theme (default) — AION neutral palette with brand red */
+    --color-background: #161618;
+    --color-background-secondary: #111113;
+    --color-surface: #1f1f23;
+    --color-surface-hover: #25252a;
+    --color-surface-active: #2a2a30;
+    --color-surface-muted: #1a1a1d;
+    --color-border: #323236;
+    --color-border-muted: #28282c;
+    --color-border-subtle: rgba(255, 255, 255, 0.07);
     --color-mcp: #9d8abc;
-    --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.24);
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 245, 232, 0.03);
-    --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.34), 0 0 0 1px rgba(255, 245, 232, 0.04);
-    --color-accent: #d67a52;
-    --color-accent-hover: #c56c46;
-    --color-accent-muted: rgba(214, 122, 82, 0.14);
-    --color-text-primary: #f1ece4;
-    --color-text-secondary: #b6ada2;
-    --color-text-muted: #8c8378;
+    --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.28);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.26), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    --color-accent: #e02424;
+    --color-accent-hover: #c81e1e;
+    --color-accent-muted: rgba(224, 36, 36, 0.16);
+    --color-text-primary: #fafafa;
+    --color-text-secondary: #b4b4ba;
+    --color-text-muted: #8b8b93;
     --color-success: #22c55e;
     --color-warning: #eab308;
     --color-error: #ef4444;
   }
 
-  /* Light theme override — Claude warm cream */
+  /* Light theme override — AION white with brand red */
   .light {
-    --color-background: #f5f3ed;
-    --color-background-secondary: #f0eee8;
-    --color-surface: #faf9f4;
-    --color-surface-hover: #f5f3ed;
-    --color-surface-active: #eceae4;
-    --color-surface-muted: #f2f0eb;
-    --color-border: #e2dfd9;
-    --color-border-muted: #e8e6e0;
-    --color-border-subtle: rgba(0, 0, 0, 0.05);
+    --color-background: #ffffff;
+    --color-background-secondary: #fafafa;
+    --color-surface: #fcfcfc;
+    --color-surface-hover: #f5f5f5;
+    --color-surface-active: #eeeeee;
+    --color-surface-muted: #f6f6f6;
+    --color-border: #e0e0e0;
+    --color-border-muted: #ebebeb;
+    --color-border-subtle: rgba(0, 0, 0, 0.06);
     --color-mcp: #8570a6;
     --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.04);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
     --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
-    --color-accent: #d97757;
-    --color-accent-hover: #c46849;
-    --color-accent-muted: #fef3ee;
-    --color-text-primary: #1a1a1a;
+    --color-accent: #cf2121;
+    --color-accent-hover: #b81c1c;
+    --color-accent-muted: #fdecec;
+    --color-text-primary: #171717;
     --color-text-secondary: #5c5c5c;
-    --color-text-muted: #8c8c8c;
+    --color-text-muted: #8a8a8a;
     --color-success: #16a34a;
     --color-warning: #ca8a04;
     --color-error: #dc2626;
@@ -75,7 +75,7 @@
   body {
     background-color: var(--color-background);
     color: var(--color-text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -106,7 +106,7 @@
 @layer components {
   /* Heading serif font — for titles and headings */
   .heading-serif {
-    font-family: 'Source Serif 4', Georgia, serif;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
   /* Button styles */
@@ -175,7 +175,7 @@
 
   /* Prose styling for assistant messages - elegant serif font */
   .prose-chat {
-    font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 1.0625rem;
     line-height: 1.625;
     letter-spacing: -0.01em;
@@ -242,7 +242,7 @@
   }
 
   .prose-chat h1, .prose-chat h2, .prose-chat h3, .prose-chat h4 {
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
     margin-top: 1.25rem;
     margin-bottom: 0.5rem;

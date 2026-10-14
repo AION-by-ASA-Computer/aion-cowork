@@ -65,7 +65,7 @@ type PendingConfigSetAction = { type: 'switch'; targetSetId: string };
 const isElectron = typeof window !== 'undefined' && window.electronAPI !== undefined;
 const CONFIG_SET_LIMIT = 20;
 const DEFAULT_CONFIG_SET_ID = 'default';
-const DEFAULT_CONFIG_SET_NAME_ZH = '默认方案';
+const DEFAULT_CONFIG_SET_NAME = 'Default';
 export const FALLBACK_PROVIDER_PRESETS: ProviderPresets = API_PROVIDER_PRESETS;
 
 const PROFILE_KEYS: ProviderProfileKey[] = [
@@ -434,7 +434,12 @@ export function buildApiConfigSets(
       return {
         ...set,
         id: typeof set.id === 'string' && set.id.trim() ? set.id : `set-${index + 1}`,
-        name: typeof set.name === 'string' && set.name.trim() ? set.name : `配置方案 ${index + 1}`,
+        name:
+          typeof set.name === 'string' && set.name.trim()
+            ? set.name === '默认方案'
+              ? DEFAULT_CONFIG_SET_NAME
+              : set.name
+            : `Config set ${index + 1}`,
         provider,
         customProtocol,
         activeProfileKey,
@@ -455,7 +460,7 @@ export function buildApiConfigSets(
   return [
     {
       id: fallbackId,
-      name: DEFAULT_CONFIG_SET_NAME_ZH,
+      name: DEFAULT_CONFIG_SET_NAME,
       isSystem: true,
       provider: activeMeta.provider,
       customProtocol: activeMeta.customProtocol,

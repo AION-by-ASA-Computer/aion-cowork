@@ -41,7 +41,7 @@ interface ConnectWithOAuthOptions<TTransport extends OAuthTransport> {
 function buildClientMetadata(redirectUrl: string): OAuthClientMetadata {
   return {
     application_type: 'native',
-    client_name: 'Open Cowork MCP Connector',
+    client_name: 'AION Cowork MCP Connector',
     grant_types: ['authorization_code', 'refresh_token'],
     logo_uri: undefined,
     redirect_uris: [redirectUrl],
@@ -223,7 +223,7 @@ export async function createOAuthCallbackListener(
       settled = true;
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       response.end(
-        '<html><body><h1>Authorization complete</h1><p>You can return to Open Cowork now.</p><script>setTimeout(() => window.close(), 1200);</script></body></html>'
+        '<html><body><h1>Authorization complete</h1><p>You can return to AION Cowork now.</p><script>setTimeout(() => window.close(), 1200);</script></body></html>'
       );
       resolveCallback(new URLSearchParams(parsedUrl.searchParams));
       void closeServer(server);
@@ -233,7 +233,7 @@ export async function createOAuthCallbackListener(
     settled = true;
     response.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
     response.end(
-      '<html><body><h1>Authorization failed</h1><p>Return to Open Cowork for details.</p></body></html>'
+      '<html><body><h1>Authorization failed</h1><p>Return to AION Cowork for details.</p></body></html>'
     );
     resolveCallback(new URLSearchParams(parsedUrl.searchParams));
     void closeServer(server);
