@@ -71,6 +71,31 @@ export const MCP_SERVER_PRESETS: Record<
       // No environment variables required
     },
   },
+  'aion-ocr': {
+    name: 'AION OCR (GLM-OCR / PGX)',
+    type: 'stdio',
+    // Reuses the AION_Agent checkout's own venv + MCP server (mcp_servers/ocr_mcp/),
+    // which talks to the remote GLM-OCR vLLM endpoint on PGX. The model itself
+    // never runs locally; only this stdio bridge does.
+    command: '/Users/giuseppelarocca/DocumentiNS/AION_Agent/.venv/bin/python',
+    args: ['-u', '/Users/giuseppelarocca/DocumentiNS/AION_Agent/mcp_servers/ocr_mcp/server.py'],
+    cwd: '/Users/giuseppelarocca/DocumentiNS/AION_Agent',
+    env: {
+      // Generic MCP clients don't have AION's per-chat session pool; any fixed
+      // id works, it just scopes the uploads/derived/workspace folders on disk.
+      AION_CHAT_SESSION_ID: 'aion-cowork-ocr',
+      // PLACEHOLDER: PGX models are currently offline. Replace with the real
+      // "http://<pgx-host>:<port>/ocr/v1" once they're back up.
+      AION_OCR_BASE_URL: 'http://PGX_HOST:8000/ocr/v1',
+      AION_OCR_MODEL: 'zai-org/GLM-OCR',
+      AION_OCR_API_KEY: 'EMPTY',
+    },
+    requiresEnv: ['AION_OCR_BASE_URL'],
+    envDescription: {
+      AION_OCR_BASE_URL:
+        'Base URL vLLM OpenAI-compatible del modello GLM-OCR su PGX (es. http://<pgx-host>:8000/ocr/v1). Placeholder finche i modelli PGX non sono di nuovo online.',
+    },
+  },
 };
 
 /**
