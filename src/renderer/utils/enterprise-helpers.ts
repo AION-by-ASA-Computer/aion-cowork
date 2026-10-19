@@ -70,6 +70,20 @@ export function getEnterpriseErrorKey(code: string | undefined): string | undefi
     case 'insecure_http':
     case 'http_insecure':
       return 'enterprise.errors.insecureHttp';
+    case 'login_timeout':
+      return 'enterprise.errors.loginTimeout';
+    case 'state_mismatch':
+      return 'enterprise.errors.stateMismatch';
+    case 'invalid_code':
+    case 'code_expired':
+    case 'code_already_used':
+    case 'invalid_verifier':
+    case 'exchange_failed':
+      return 'enterprise.errors.exchangeFailed';
+    case 'desktop_login_unsupported':
+      return 'enterprise.errors.desktopLoginUnsupported';
+    case 'browser_open_failed':
+      return 'enterprise.errors.browserOpenFailed';
     case 'session_expired':
     case 'unauthorized':
       return 'enterprise.errors.sessionExpired';
@@ -93,4 +107,30 @@ export function formatExpiry(iso: string | undefined, locale?: string): string |
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleString(locale);
+}
+
+/** Silent outcome: the user pressed "Annulla" while waiting for the browser. */
+export function isLoginCancelled(error: EnterpriseError | undefined): boolean {
+  return error?.code === 'login_cancelled';
+}
+
+export interface LoginMethods {
+  /** Show the "Accedi con il browser" button. */
+  browser: boolean;
+  /** Show the (secondary) username/password form. */
+  password: boolean;
+}
+
+/**
+ * Which login methods to offer. Unknown probe (not run yet / failed) keeps both available;
+ * a verified server without `desktopLogin` falls back to password only (today's behaviour).
+ * The password form is hidden for SSO-only servers or when loginMode is not 'password'.
+ */
+export function resolveLoginMethods(probe: EnterpriseProbeResult | null): LoginMethods {
+  if (!probe || !probe.ok) return { browser: true, password: true };
+  const passwordAllowed =
+    probe.passwordAuthEnabled !== false &&
+    !(probe.ssoEnabled === true && probe.passwordAuthEnabled !== true) &&
+    (probe.loginMode === undefined || probe.loginMode === 'password');
+  return { browser: probe.desktopLogin === true, password: passwordAllowed };
 }

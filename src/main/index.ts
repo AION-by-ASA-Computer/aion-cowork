@@ -1998,6 +1998,17 @@ const enterpriseService = registerEnterpriseIpc({
     }
   },
   clientVersion: app.getVersion(),
+  openExternal: async (url) => {
+    const protocol = new URL(url).protocol;
+    if (protocol !== 'http:' && protocol !== 'https:') throw new Error('Unsupported URL scheme');
+    await shell.openExternal(url);
+  },
+  focusWindow: () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  },
   log,
 });
 

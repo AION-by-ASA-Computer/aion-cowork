@@ -169,6 +169,15 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+/**
+ * Heuristic used when the server does not publish `login_url`: the API usually lives under
+ * `<host>/api` while the web login page is `<host>/login`. Callers must not treat the result as
+ * proof of desktop login support (that is `features.desktop_login`).
+ */
+export function fallbackLoginUrl(endpoint: string): string {
+  return `${endpoint.replace(/\/+$/, '').replace(/\/api$/, '')}/login`;
+}
+
 export async function probe(
   rawEndpoint: string,
   clientVersion?: string
@@ -213,6 +222,9 @@ export async function probe(
         ssoEnabled: info.sso_enabled as boolean | undefined,
         twoFactorRequired: info.two_factor_required as boolean | undefined,
         llmProxy: features.llm_proxy as boolean | undefined,
+        loginUrl:
+          typeof info.login_url === 'string' && info.login_url ? info.login_url : fallbackLoginUrl(endpoint),
+        desktopLogin: features.desktop_login === true,
         ...(warnings.length ? { warning: warnings.join('; ') } : {}),
       };
     }
@@ -304,6 +316,37 @@ export async function login(
   });
   return parseLoginOutcome(data);
 }
+
+/** Exchanges the one-time code obtained through the browser callback (PKCE) for a session. */
+export async function exchangeDesktopCode(
+  endpoint: string,
+  code: string,
+  codeVerifier: string
+): Promise<LoginOutcome> {
+  try {
+    const data = await requestJson(endpoint, '/auth/desktop/exchange', {
+      method: 'POST',
+      body: { code, code_verifier: codeVerifier },
+    });
+    return parseLoginOutcome(data);
+  } catch (err) {
+    if (err instanceof EnterpriseHttpError && DESKTOP_EXCHANGE_ERRORS.has(err.error.code)) {
+      // Same code the server sent; the renderer maps it to a localized message.
+      throw new EnterpriseHttpError(err.status, {
+        code: err.error.code,
+        message: err.error.message || DESKTOP_EXCHANGE_ERRORS.get(err.error.code)!,
+      });
+    }
+    throw err;
+  }
+}
+
+const DESKTOP_EXCHANGE_ERRORS = new Map<string, string>([
+  ['invalid_code', 'The login code is not valid'],
+  ['code_expired', 'The login code has expired'],
+  ['code_already_used', 'The login code was already used'],
+  ['invalid_verifier', 'The login verification failed'],
+]);
 
 export async function verifyMfa(
   endpoint: string,

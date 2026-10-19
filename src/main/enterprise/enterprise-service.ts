@@ -15,6 +15,7 @@ import type {
 } from '../../shared/enterprise-types';
 import * as auth from './auth';
 import type { EnterpriseStore } from './enterprise-store';
+import * as browserLogin from './browser-login';
 
 /** Subset of ConfigStore used here (injected for testability). */
 export interface EnterpriseConfigPort {
@@ -35,6 +36,13 @@ export interface EnterpriseServiceDeps {
   emitStatus: (status: EnterpriseStatus) => void;
   clientVersion?: string;
   log?: (...args: unknown[]) => void;
+  /** Opens a URL in the system browser (http/https only). Required for browser login. */
+  openExternal?: (url: string) => Promise<void> | void;
+  /** Brings the main window to front after a browser login completes. */
+  focusWindow?: () => void;
+  /** Test hooks: replace the loopback login implementation. */
+  startBrowserLogin?: typeof browserLogin.startBrowserLogin;
+  cancelBrowserLogin?: typeof browserLogin.cancelBrowserLogin;
 }
 
 /** Floor between scheduled refresh attempts, to avoid refresh storms. */
@@ -105,6 +113,66 @@ export class EnterpriseService {
     } catch (err) {
       return { status: 'error', error: auth.toEnterpriseError(err) };
     }
+  }
+
+  /**
+   * Login through the system browser (PKCE + loopback): the server web page handles password,
+   * SSO and 2FA; we only receive a one-time code and exchange it for a session.
+   */
+  async loginWithBrowser(rawEndpoint: string): Promise<EnterpriseLoginResult> {
+    let endpoint: string;
+    try {
+      endpoint = auth.normalizeEndpoint(rawEndpoint);
+    } catch (err) {
+      return { status: 'error', error: { code: 'invalid_endpoint', message: (err as Error).message } };
+    }
+    if (!this.deps.openExternal) {
+      return {
+        status: 'error',
+        error: { code: 'browser_open_failed', message: 'Cannot open the system browser' },
+      };
+    }
+    try {
+      const info = await auth.probe(endpoint, this.deps.clientVersion);
+      if (!info.ok) {
+        return {
+          status: 'error',
+          error: info.error ?? { code: 'unreachable', message: 'Cannot reach the server' },
+        };
+      }
+      if (!info.desktopLogin || !info.loginUrl) {
+        return {
+          status: 'error',
+          error: {
+            code: 'desktop_login_unsupported',
+            message:
+              'Il server non supporta il login dal browser: aggiornalo. / The server does not support browser login: it must be updated.',
+          },
+        };
+      }
+      const start = this.deps.startBrowserLogin ?? browserLogin.startBrowserLogin;
+      const { code, codeVerifier } = await start({
+        endpoint,
+        loginUrl: info.loginUrl,
+        openExternal: this.deps.openExternal,
+      });
+      const outcome = await auth.exchangeDesktopCode(endpoint, code, codeVerifier);
+      const result = await this.handleOutcome(endpoint, outcome);
+      if (result.status === 'ok') {
+        try {
+          this.deps.focusWindow?.();
+        } catch (err) {
+          this.log('focusWindow failed', err);
+        }
+      }
+      return result;
+    } catch (err) {
+      return { status: 'error', error: auth.toEnterpriseError(err) };
+    }
+  }
+
+  async cancelBrowserLogin(): Promise<void> {
+    (this.deps.cancelBrowserLogin ?? browserLogin.cancelBrowserLogin)();
   }
 
   async verifyMfa(req: EnterpriseMfaVerifyRequest): Promise<EnterpriseLoginResult> {

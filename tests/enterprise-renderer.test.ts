@@ -103,3 +103,32 @@ describe('enterprise renderer wiring (source)', () => {
     }
   });
 });
+
+import { getEnterpriseErrorKey as _key, isLoginCancelled, resolveLoginMethods } from '../src/renderer/utils/enterprise-helpers';
+
+describe('resolveLoginMethods', () => {
+  const base = { ok: true, endpoint: 'e', verified: true };
+  it('offers both while the probe is unknown', () => {
+    expect(resolveLoginMethods(null)).toEqual({ browser: true, password: true });
+  });
+  it('desktopLogin servers: browser first, password only when allowed', () => {
+    expect(resolveLoginMethods({ ...base, desktopLogin: true, passwordAuthEnabled: true, loginMode: 'password' }))
+      .toEqual({ browser: true, password: true });
+    expect(resolveLoginMethods({ ...base, desktopLogin: true, ssoEnabled: true, passwordAuthEnabled: false }))
+      .toEqual({ browser: true, password: false });
+    expect(resolveLoginMethods({ ...base, desktopLogin: true, loginMode: 'sso' }))
+      .toEqual({ browser: true, password: false });
+  });
+  it('servers without desktopLogin keep the password form; SSO-only gets nothing', () => {
+    expect(resolveLoginMethods({ ...base })).toEqual({ browser: false, password: true });
+    expect(resolveLoginMethods({ ...base, ssoEnabled: true, passwordAuthEnabled: false }))
+      .toEqual({ browser: false, password: false });
+  });
+  it('maps the new error codes', () => {
+    expect(_key('login_timeout')).toBeDefined();
+    expect(_key('state_mismatch')).toBeDefined();
+    expect(_key('code_expired')).toBe(_key('exchange_failed'));
+    expect(_key('desktop_login_unsupported')).toBeDefined();
+    expect(isLoginCancelled({ code: 'login_cancelled', message: '' })).toBe(true);
+  });
+});

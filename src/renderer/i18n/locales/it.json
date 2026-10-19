@@ -1107,7 +1107,12 @@
       "password": "Password",
       "signIn": "Accedi",
       "signingIn": "Accesso in corso...",
-      "ssoNotAvailable": "Questo server richiede il single sign-on (SSO) o disabilita l'accesso con password. L'accesso SSO dall'app desktop non è ancora disponibile. Chiedi all'amministratore di abilitare l'accesso con password per i client desktop."
+      "ssoNotAvailable": "Questo server richiede il single sign-on (SSO) o disabilita l'accesso con password. L'accesso SSO dall'app desktop non è ancora disponibile. Chiedi all'amministratore di abilitare l'accesso con password per i client desktop.",
+      "browserSignIn": "Accedi con il browser",
+      "browserWaiting": "In attesa del login nel browser…",
+      "browserHint": "Completa l'accesso nella finestra del browser, poi torna qui. Il browser non si è aperto? Annulla e riprova.",
+      "browserCancel": "Annulla",
+      "usePassword": "Usa nome utente e password"
     },
     "mfa": {
       "verifyTitle": "Verifica a due fattori",
@@ -1149,7 +1154,12 @@
       "ssoNotAvailable": "Questo server richiede il single sign-on (SSO) o disabilita l'accesso con password. L'accesso SSO dall'app desktop non è ancora disponibile.",
       "tempPasswordExpired": "La password temporanea è scaduta. Chiedi all'amministratore una nuova password.",
       "mfaLocked": "Troppi tentativi. Riprova tra {{seconds}} secondi.",
-      "sessionExpired": "La sessione è scaduta. Accedi di nuovo."
+      "sessionExpired": "La sessione è scaduta. Accedi di nuovo.",
+      "loginTimeout": "Tempo scaduto: il login nel browser non è stato completato. Riprova.",
+      "stateMismatch": "La risposta del browser non corrisponde alla richiesta di accesso. Riprova.",
+      "exchangeFailed": "Non è stato possibile completare l'accesso: il codice non è valido, è scaduto o è già stato usato. Riprova.",
+      "desktopLoginUnsupported": "Questo server richiede il single sign-on (SSO) ma non supporta ancora il login dal browser per l'app desktop. Chiedi all'amministratore di aggiornare il server AION.",
+      "browserOpenFailed": "Impossibile aprire il browser di sistema. Riprova."
     },
     "account": {
       "unavailable": "La modalità aziendale non è disponibile in questa build.",

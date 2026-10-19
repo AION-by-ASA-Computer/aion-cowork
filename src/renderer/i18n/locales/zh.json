@@ -1072,7 +1072,12 @@
       "password": "Password",
       "signIn": "Sign in",
       "signingIn": "Signing in...",
-      "ssoNotAvailable": "This server requires single sign-on (SSO) or disables password login. SSO login from the desktop app is not available yet. Ask your administrator to enable password login for desktop clients."
+      "ssoNotAvailable": "This server requires single sign-on (SSO) or disables password login. SSO login from the desktop app is not available yet. Ask your administrator to enable password login for desktop clients.",
+      "browserSignIn": "使用浏览器登录",
+      "browserWaiting": "正在等待浏览器登录…",
+      "browserHint": "请在浏览器窗口中完成登录，然后返回此处。浏览器没有打开？请取消后重试。",
+      "browserCancel": "取消",
+      "usePassword": "使用用户名和密码"
     },
     "mfa": {
       "verifyTitle": "Two-factor verification",
@@ -1114,7 +1119,12 @@
       "ssoNotAvailable": "This server requires single sign-on (SSO) or disables password login. SSO login from the desktop app is not available yet.",
       "tempPasswordExpired": "The temporary password has expired. Ask your administrator for a new one.",
       "mfaLocked": "Too many attempts. Try again in {{seconds}} seconds.",
-      "sessionExpired": "Your session has expired. Sign in again."
+      "sessionExpired": "Your session has expired. Sign in again.",
+      "loginTimeout": "超时：浏览器登录未完成，请重试。",
+      "stateMismatch": "浏览器返回的信息与登录请求不匹配，请重试。",
+      "exchangeFailed": "无法完成登录：代码无效、已过期或已被使用，请重试。",
+      "desktopLoginUnsupported": "此服务器需要单点登录 (SSO)，但尚不支持桌面应用的浏览器登录。请联系管理员更新 AION 服务器。",
+      "browserOpenFailed": "无法打开系统浏览器，请重试。"
     },
     "account": {
       "unavailable": "Enterprise mode is not available in this build.",

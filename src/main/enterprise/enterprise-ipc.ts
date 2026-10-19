@@ -12,6 +12,8 @@ export interface EnterpriseIpcDeps {
   /** Called on every status change; index.ts forwards it on ENTERPRISE_STATUS_CHANNEL. */
   emitStatus: (status: EnterpriseStatus) => void;
   clientVersion?: string;
+  openExternal?: (url: string) => Promise<void> | void;
+  focusWindow?: () => void;
   log?: (...args: unknown[]) => void;
 }
 
@@ -28,6 +30,10 @@ export function registerEnterpriseIpc(deps: EnterpriseIpcDeps): EnterpriseServic
   ipcMain.handle(c.getStatus, () => svc.getStatus());
   ipcMain.handle(c.probe, (_e, endpoint: string) => svc.probe(String(endpoint ?? '')));
   ipcMain.handle(c.login, (_e, req) => svc.login(req));
+  ipcMain.handle(c.loginWithBrowser, (_e, endpoint: string) =>
+    svc.loginWithBrowser(String(endpoint ?? ''))
+  );
+  ipcMain.handle(c.cancelBrowserLogin, () => svc.cancelBrowserLogin());
   ipcMain.handle(c.verifyMfa, (_e, req) => svc.verifyMfa(req));
   ipcMain.handle(c.startMfaEnroll, (_e, mfaToken: string) => svc.startMfaEnroll(mfaToken));
   ipcMain.handle(c.confirmMfaEnroll, (_e, req) => svc.confirmMfaEnroll(req));

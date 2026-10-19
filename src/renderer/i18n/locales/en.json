@@ -1106,7 +1106,12 @@
       "password": "Password",
       "signIn": "Sign in",
       "signingIn": "Signing in...",
-      "ssoNotAvailable": "This server requires single sign-on (SSO) or disables password login. SSO login from the desktop app is not available yet. Ask your administrator to enable password login for desktop clients."
+      "ssoNotAvailable": "This server requires single sign-on (SSO) or disables password login. SSO login from the desktop app is not available yet. Ask your administrator to enable password login for desktop clients.",
+      "browserSignIn": "Sign in with browser",
+      "browserWaiting": "Waiting for the browser login…",
+      "browserHint": "Complete the sign-in in your browser window, then come back here. The browser did not open? Cancel and try again.",
+      "browserCancel": "Cancel",
+      "usePassword": "Use username and password"
     },
     "mfa": {
       "verifyTitle": "Two-factor verification",
@@ -1148,7 +1153,12 @@
       "ssoNotAvailable": "This server requires single sign-on (SSO) or disables password login. SSO login from the desktop app is not available yet.",
       "tempPasswordExpired": "The temporary password has expired. Ask your administrator for a new one.",
       "mfaLocked": "Too many attempts. Try again in {{seconds}} seconds.",
-      "sessionExpired": "Your session has expired. Sign in again."
+      "sessionExpired": "Your session has expired. Sign in again.",
+      "loginTimeout": "Timed out: the browser login was not completed. Please try again.",
+      "stateMismatch": "The browser response does not match the sign-in request. Please try again.",
+      "exchangeFailed": "Sign-in could not be completed: the code is invalid, expired or already used. Please try again.",
+      "desktopLoginUnsupported": "This server requires single sign-on (SSO) but does not support browser login for the desktop app yet. Ask your administrator to update the AION server.",
+      "browserOpenFailed": "Could not open the system browser. Please try again."
     },
     "account": {
       "unavailable": "Enterprise mode is not available in this build.",

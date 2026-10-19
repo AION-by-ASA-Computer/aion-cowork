@@ -36,7 +36,8 @@ Gli stessi due campi nuovi compaiono su `/auth/2fa/verify`, `/auth/2fa/enroll/co
   "login_mode": "password", "password_auth_enabled": true,
   "sso_enabled": false, "two_factor_required": false,
   "token_ttl_seconds": 604800,
-  "features": {"llm_proxy": true, "client_bootstrap": false}
+  "login_url": "https://agent.azienda.it/login",   // NUOVO: pagina di login web (chat-ui), da chat_base_url()
+  "features": {"llm_proxy": true, "client_bootstrap": false, "desktop_login": true}
 }
 ```
 `features.client_bootstrap` diventa `true` con la Fase 2. Il client usa questo percorso per validare l'endpoint (se risponde con `product == "aion-agent"` e `api_version` supportata); se fallisce, ripiega su `/health` + `/auth/status` e segnala una versione server non verificabile.
@@ -73,3 +74,18 @@ Proxy OpenAI-compatibile **senza agente**: inoltra la richiesta al provider sele
 - Il client invia `Authorization: Bearer <access_token>`.
 - Rinnovo: quando mancano meno di 24 h (o 10% del TTL) alla scadenza chiama `/auth/refresh`; su 401 passa a "sessione scaduta" e chiede il login.
 - Il set di configurazione gestito "AION" usa `provider: custom`, `customProtocol: openai`, `baseUrl = <endpoint>/v1/llm`, `apiKey = access_token`, `model = <slug scelto>`.
+
+## Login desktop via browser (PKCE + loopback), unico punto di login
+Il client non raccoglie password: apre la pagina di login web del server (che gestisce password, SSO Microsoft/Google, 2FA, ecc.) nel browser di sistema e riceve un codice monouso su un callback loopback.
+
+1. Il client genera `code_verifier` (43-128 caratteri base64url casuali), `code_challenge = base64url(sha256(code_verifier))`, `state` (casuale), apre un server HTTP su `127.0.0.1:<porta libera>` e apre nel browser:
+   `<login_url>?desktop=1&state=<state>&challenge=<code_challenge>&redirect=http%3A%2F%2F127.0.0.1%3A<porta>%2Fcallback`
+   (`login_url` da `/v1/client/info`; in mancanza, l'endpoint senza il suffisso `/api` + `/login`).
+2. La pagina web fa login con qualunque metodo. A login completato, se i parametri `desktop` sono presenti, chiama `POST /auth/desktop/handoff` (Bearer del token appena ottenuto) con `{challenge, state, redirect}` e riceve `{code, expires_in}`; poi naviga a `<redirect>?code=<code>&state=<state>`.
+3. Il client verifica `state`, risponde con una pagina HTML "Accesso completato, puoi tornare ad AION Cowork" e chiama `POST /auth/desktop/exchange` con `{code, code_verifier}` (senza Bearer).
+
+### `POST /auth/desktop/handoff` (Bearer token chat, non API key)
+Corpo `{challenge, state, redirect}`. Valida `redirect` con la allow-list (env `AION_DESKTOP_REDIRECT_ALLOWLIST`, separata da virgole; di default sono ammessi solo URL loopback `http://127.0.0.1:<qualsiasi porta>/callback`, `http://localhost:<porta>/callback` e `http://[::1]:<porta>/callback`). Salva (cifrato) `{user, challenge, state, redirect}` in `sso_auth_states` con `kind="desktop_handoff"`, TTL 60 s, monouso. Risposta `{code, expires_in}`. Errori: 400 `{detail:{code:"redirect_not_allowed"|"invalid_challenge"}}`, 401.
+
+### `POST /auth/desktop/exchange` (pubblico)
+Corpo `{code, code_verifier}`. Verifica `base64url(sha256(code_verifier)) == challenge` (confronto a tempo costante) e consuma il codice in modo atomico (un verifier errato brucia il codice). Emette un **nuovo** token per l'utente e risponde con il payload di login standard (con `expires_at`/`expires_in`, `must_change_password`, `sso_link_required`). Errori: 400 `{detail:{code:"invalid_code"|"code_expired"|"code_already_used"|"invalid_verifier"}}`.

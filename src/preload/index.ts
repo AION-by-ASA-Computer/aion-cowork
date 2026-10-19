@@ -394,6 +394,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getStatus: () => ipcRenderer.invoke(EC.getStatus),
     probe: (endpoint) => ipcRenderer.invoke(EC.probe, endpoint),
     login: (request) => ipcRenderer.invoke(EC.login, request),
+    loginWithBrowser: (endpoint) => ipcRenderer.invoke(EC.loginWithBrowser, endpoint),
+    cancelBrowserLogin: () => ipcRenderer.invoke(EC.cancelBrowserLogin),
     verifyMfa: (request) => ipcRenderer.invoke(EC.verifyMfa, request),
     startMfaEnroll: (mfaToken) => ipcRenderer.invoke(EC.startMfaEnroll, mfaToken),
     confirmMfaEnroll: (request) => ipcRenderer.invoke(EC.confirmMfaEnroll, request),

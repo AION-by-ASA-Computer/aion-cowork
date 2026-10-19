@@ -53,6 +53,10 @@ export interface EnterpriseProbeResult {
   ssoEnabled?: boolean;
   twoFactorRequired?: boolean;
   llmProxy?: boolean;
+  /** Web login page of the server (chat-ui), from /v1/client/info `login_url`; undefined on older servers. */
+  loginUrl?: string;
+  /** Server supports browser login (PKCE + loopback): `features.desktop_login`. */
+  desktopLogin?: boolean;
   /** Client too old / server API too new, etc. */
   warning?: string;
   error?: EnterpriseError;
@@ -116,6 +120,14 @@ export interface EnterpriseAPI {
   /** Logs out, removes the managed config set and forgets the endpoint. */
   disconnect(): Promise<EnterpriseStatus>;
   /**
+   * Browser login (PKCE + loopback callback): opens the server web login page in the system
+   * browser (password, SSO and 2FA are all handled by the web UI) and resolves once the
+   * callback has been exchanged. Error codes: login_cancelled, login_timeout, state_mismatch,
+   * exchange_failed.
+   */
+  loginWithBrowser(endpoint: string): Promise<EnterpriseLoginResult>;
+  cancelBrowserLogin(): Promise<void>;
+  /**
    * Subscribes to status pushes on a dedicated IPC channel (ENTERPRISE_STATUS_CHANNEL).
    * Independent from electronAPI.on, which only allows a single listener.
    */
@@ -140,6 +152,8 @@ export const ENTERPRISE_CHANNELS = {
   selectModel: 'enterprise.selectModel',
   chooseStandalone: 'enterprise.chooseStandalone',
   disconnect: 'enterprise.disconnect',
+  loginWithBrowser: 'enterprise.loginWithBrowser',
+  cancelBrowserLogin: 'enterprise.cancelBrowserLogin',
 } as const;
 
 /** ServerEvent type pushed to the renderer when status changes; payload is EnterpriseStatus. */

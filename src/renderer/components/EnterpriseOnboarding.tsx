@@ -22,9 +22,10 @@ import type {
 import { getEnterpriseApi } from '../utils/enterprise-api';
 import {
   getEnterpriseErrorKey,
+  isLoginCancelled,
   isSsoOnlyError,
   normalizeEndpointInput,
-  probeBlocksPasswordLogin,
+  resolveLoginMethods,
 } from '../utils/enterprise-helpers';
 import { setEnterpriseStatus } from '../hooks/useEnterpriseStatus';
 
@@ -95,6 +96,8 @@ interface EnterpriseLoginPanelProps {
   onSuccess: (status: EnterpriseStatus) => void;
   /** Start directly at the change-password step (status.mustChangePassword). */
   startAtChangePassword?: boolean;
+  /** Probe result already known by the caller (wizard); otherwise the panel probes the endpoint. */
+  probe?: EnterpriseProbeResult | null;
 }
 
 export function EnterpriseLoginPanel({
@@ -102,6 +105,7 @@ export function EnterpriseLoginPanel({
   initialUsername = '',
   onSuccess,
   startAtChangePassword = false,
+  probe: probeProp = null,
 }: EnterpriseLoginPanelProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<LoginSubStep>(startAtChangePassword ? 'password' : 'login');
@@ -116,6 +120,39 @@ export function EnterpriseLoginPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<EnterpriseError | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [ownProbe, setOwnProbe] = useState<EnterpriseProbeResult | null>(null);
+  const [waitingBrowser, setWaitingBrowser] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const probe = probeProp ?? ownProbe;
+  const methods = resolveLoginMethods(probe);
+
+  useEffect(() => {
+    if (probeProp || !endpoint || startAtChangePassword) return;
+    const api = getEnterpriseApi();
+    if (!api) return;
+    let cancelled = false;
+    api
+      .probe(endpoint)
+      .then((r) => {
+        if (!cancelled) setOwnProbe(r);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [endpoint, probeProp, startAtChangePassword]);
+
+  // Leaving the panel while the browser login is pending must free the loopback server.
+  const waitingRef = useRef(false);
+  useEffect(() => {
+    waitingRef.current = waitingBrowser;
+  }, [waitingBrowser]);
+  useEffect(
+    () => () => {
+      if (waitingRef.current) void getEnterpriseApi()?.cancelBrowserLogin();
+    },
+    []
+  );
 
   const finish = useCallback(
     (snapshot: EnterpriseStatus) => {
@@ -168,6 +205,29 @@ export function EnterpriseLoginPanel({
       setBusy(false);
     }
   }, []);
+
+  const startBrowserLogin = () => {
+    const api = getEnterpriseApi();
+    if (!api || busy || waitingBrowser) return;
+    setError(null);
+    setLocalError(null);
+    setWaitingBrowser(true);
+    void (async () => {
+      try {
+        const result = await api.loginWithBrowser(endpoint);
+        if (result.status === 'error' && isLoginCancelled(result.error)) return;
+        await handleResult(result);
+      } catch (err) {
+        setError({ code: 'unexpected', message: err instanceof Error ? err.message : String(err) });
+      } finally {
+        setWaitingBrowser(false);
+      }
+    })();
+  };
+
+  const cancelBrowser = () => {
+    void getEnterpriseApi()?.cancelBrowserLogin();
+  };
 
   const submitLogin = (e: FormEvent) => {
     e.preventDefault();
@@ -222,9 +282,8 @@ export function EnterpriseLoginPanel({
   ) : null;
 
   if (step === 'login') {
-    return (
+    const passwordForm = (
       <form onSubmit={submitLogin} className="space-y-4">
-        <p className="text-xs text-text-muted break-all">{endpoint}</p>
         <Field id="ent-username" label={t('enterprise.login.username')}>
           <input
             id="ent-username"
@@ -232,8 +291,8 @@ export function EnterpriseLoginPanel({
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
-            autoFocus
-            disabled={busy}
+            autoFocus={!methods.browser}
+            disabled={busy || waitingBrowser}
           />
         </Field>
         <Field id="ent-password" label={t('enterprise.login.password')}>
@@ -244,15 +303,66 @@ export function EnterpriseLoginPanel({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
-            disabled={busy}
+            disabled={busy || waitingBrowser}
           />
         </Field>
-        {errorNode}
-        <button type="submit" className={`${primaryBtn} w-full`} disabled={busy || !username.trim() || !password}>
+        <button
+          type="submit"
+          className={`${methods.browser ? secondaryBtn : primaryBtn} w-full`}
+          disabled={busy || waitingBrowser || !username.trim() || !password}
+        >
           {busy && <Loader2 className="w-4 h-4 animate-spin" />}
           {busy ? t('enterprise.login.signingIn') : t('enterprise.login.signIn')}
         </button>
       </form>
+    );
+    return (
+      <div className="space-y-4">
+        <p className="text-xs text-text-muted break-all">{endpoint}</p>
+        {methods.browser &&
+          (waitingBrowser ? (
+            <div className="space-y-3 rounded-lg border border-border-subtle bg-surface-hover px-3 py-3">
+              <p role="status" className="flex items-center gap-2 text-sm text-text-primary">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t('enterprise.login.browserWaiting')}
+              </p>
+              <p className="text-xs text-text-muted">{t('enterprise.login.browserHint')}</p>
+              <button type="button" className={secondaryBtn} onClick={cancelBrowser}>
+                {t('enterprise.login.browserCancel')}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={`${primaryBtn} w-full`}
+              onClick={startBrowserLogin}
+              disabled={busy}
+            >
+              {t('enterprise.login.browserSignIn')}
+            </button>
+          ))}
+        {!methods.browser && !methods.password && (
+          <InfoBanner>{t('enterprise.errors.desktopLoginUnsupported')}</InfoBanner>
+        )}
+        {methods.password &&
+          (methods.browser ? (
+            <div className="space-y-3">
+              <button
+                type="button"
+                className="text-xs text-text-muted hover:text-text-primary underline underline-offset-2"
+                aria-expanded={showPasswordForm}
+                onClick={() => setShowPasswordForm((v) => !v)}
+                disabled={waitingBrowser}
+              >
+                {t('enterprise.login.usePassword')}
+              </button>
+              {showPasswordForm && passwordForm}
+            </div>
+          ) : (
+            passwordForm
+          ))}
+        {errorNode}
+      </div>
     );
   }
 
@@ -598,7 +708,8 @@ export function EnterpriseOnboarding({
 
   const normalizedForWarning = normalizeEndpointInput(endpointInput);
   const insecure = normalizedForWarning.ok && normalizedForWarning.insecure;
-  const sso = probeBlocksPasswordLogin(probe);
+  const methods = resolveLoginMethods(probe);
+  const sso = Boolean(probe?.ok) && !methods.browser && !methods.password;
   const canContinue = Boolean(probe?.ok) && !sso;
 
   const titleKey: Record<WizardStep, string> = {
@@ -743,7 +854,7 @@ export function EnterpriseOnboarding({
                 )}
               </div>
             )}
-            {sso && <InfoBanner>{t('enterprise.login.ssoNotAvailable')}</InfoBanner>}
+            {sso && <InfoBanner>{t('enterprise.errors.desktopLoginUnsupported')}</InfoBanner>}
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -765,6 +876,7 @@ export function EnterpriseOnboarding({
         {step === 'login' && (
           <EnterpriseLoginPanel
             endpoint={endpoint}
+            probe={probe}
             onSuccess={(status) => {
               setStatusAfterLogin(status);
               setStep('model');
