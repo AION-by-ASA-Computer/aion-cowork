@@ -23,7 +23,7 @@ import {
 } from '../utils/session-export';
 import { SessionList } from './SessionList';
 
-import sidebarLogoSrc from '../assets/logo.png';
+import sidebarLogoSrc from '../assets/logo-mark.svg';
 
 export function Sidebar() {
   const { t } = useTranslation();
@@ -337,16 +337,16 @@ export function Sidebar() {
 
   return (
     <aside className="relative w-[17.5rem] bg-surface/96 border-r border-border-muted flex flex-col overflow-hidden">
-      <div className="px-4 pt-5 pb-4 border-b border-border-muted">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex items-center gap-3">
+      <div className="px-4 pt-3 pb-3 border-b border-border-muted">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex items-center gap-2">
             <img
               src={sidebarLogoSrc}
               alt={t('common.appLogoAlt')}
-              className="w-10 h-10 rounded-2xl object-cover border border-border-subtle bg-background/60 flex-shrink-0"
+              className="w-7 h-7 rounded-lg object-contain border border-border-subtle flex-shrink-0"
             />
             <div className="min-w-0">
-              <h1 className="text-[1.34rem] leading-none font-semibold tracking-[-0.035em] text-text-primary">
+              <h1 className="text-[1.05rem] leading-none font-semibold tracking-[-0.03em] text-text-primary">
                 AION Cowork
               </h1>
             </div>

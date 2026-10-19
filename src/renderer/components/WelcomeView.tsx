@@ -24,7 +24,7 @@ type AttachedFile = {
   inlineDataBase64?: string;
 };
 
-import welcomeLogoSrc from '../assets/logo.png';
+import welcomeLogoSrc from '../assets/logo-mark.svg';
 
 export function WelcomeView() {
   const { t } = useTranslation();
@@ -446,7 +446,7 @@ export function WelcomeView() {
             <img
               src={welcomeLogoSrc}
               alt={t('welcome.logoAlt')}
-              className="w-16 h-16 md:w-20 md:h-20 rounded-[1.4rem] object-cover border border-border-subtle bg-background/60 shadow-soft"
+              className="w-12 h-12 md:w-14 md:h-14 rounded-xl object-contain border border-border-subtle shadow-soft"
             />
             <div className="text-left">
               <h1 className="text-[2.35rem] md:text-[3.1rem] leading-none font-semibold tracking-[-0.05em] text-text-primary">
