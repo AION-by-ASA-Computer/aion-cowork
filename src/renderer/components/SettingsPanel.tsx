@@ -11,6 +11,7 @@ import {
   ChevronRight,
   BrainCircuit,
   UsersRound,
+  Building2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWindowSize } from '../hooks/useWindowSize';
@@ -25,6 +26,7 @@ import { SettingsLogs } from './settings/SettingsLogs';
 import { SettingsMemory } from './settings/SettingsMemory';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
 import { SettingsSubagents } from './settings/SettingsSubagents';
+import { SettingsAccount } from './settings/SettingsAccount';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -37,7 +39,8 @@ interface SettingsPanelProps {
     | 'subagents'
     | 'schedule'
     | 'logs'
-    | 'general';
+    | 'general'
+    | 'account';
 }
 
 type TabId =
@@ -49,7 +52,8 @@ type TabId =
   | 'subagents'
   | 'schedule'
   | 'logs'
-  | 'general';
+  | 'general'
+  | 'account';
 
 const VALID_TABS = new Set<TabId>([
   'api',
@@ -61,6 +65,7 @@ const VALID_TABS = new Set<TabId>([
   'schedule',
   'logs',
   'general',
+  'account',
 ]);
 
 function SettingsConnectorsFallback({ onRetry }: { onRetry: () => void }) {
@@ -176,6 +181,12 @@ export function SettingsPanel({ onClose, initialTab = 'api' }: SettingsPanelProp
       label: t('settings.general'),
       icon: Globe,
       description: t('settings.generalDesc'),
+    },
+    {
+      id: 'account' as TabId,
+      label: t('settings.account'),
+      icon: Building2,
+      description: t('settings.accountDesc'),
     },
   ];
   const activeTabMeta = tabs.find((tab) => tab.id === activeTab);
@@ -314,6 +325,9 @@ export function SettingsPanel({ onClose, initialTab = 'api' }: SettingsPanelProp
               </div>
               <div className={activeTab === 'general' ? '' : 'hidden'}>
                 {viewedTabs.has('general') && <SettingsGeneral />}
+              </div>
+              <div className={activeTab === 'account' ? '' : 'hidden'}>
+                {viewedTabs.has('account') && <SettingsAccount />}
               </div>
             </div>
           </div>

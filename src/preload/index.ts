@@ -29,6 +29,11 @@ import type {
   MemoryInspectSessionResult,
 } from '../renderer/types';
 import type { DiagnosticInput, DiagnosticResult } from '../renderer/types';
+import {
+  ENTERPRISE_CHANNELS as EC,
+  ENTERPRISE_STATUS_CHANNEL,
+  type EnterpriseAPI,
+} from '../shared/enterprise-types';
 import type {
   McpServerConfig,
   McpTool,
@@ -384,6 +389,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('logs.write', level, ...args),
   },
 
+  // Enterprise (AION Agent) mode
+  enterprise: {
+    getStatus: () => ipcRenderer.invoke(EC.getStatus),
+    probe: (endpoint) => ipcRenderer.invoke(EC.probe, endpoint),
+    login: (request) => ipcRenderer.invoke(EC.login, request),
+    verifyMfa: (request) => ipcRenderer.invoke(EC.verifyMfa, request),
+    startMfaEnroll: (mfaToken) => ipcRenderer.invoke(EC.startMfaEnroll, mfaToken),
+    confirmMfaEnroll: (request) => ipcRenderer.invoke(EC.confirmMfaEnroll, request),
+    changePassword: (request) => ipcRenderer.invoke(EC.changePassword, request),
+    refresh: () => ipcRenderer.invoke(EC.refresh),
+    logout: () => ipcRenderer.invoke(EC.logout),
+    listModels: () => ipcRenderer.invoke(EC.listModels),
+    selectModel: (slug) => ipcRenderer.invoke(EC.selectModel, slug),
+    chooseStandalone: () => ipcRenderer.invoke(EC.chooseStandalone),
+    disconnect: () => ipcRenderer.invoke(EC.disconnect),
+    onStatus: (callback) => {
+      const listener = (_: Electron.IpcRendererEvent, status: Parameters<typeof callback>[0]) =>
+        callback(status);
+      ipcRenderer.on(ENTERPRISE_STATUS_CHANNEL, listener);
+      return () => {
+        ipcRenderer.removeListener(ENTERPRISE_STATUS_CHANNEL, listener);
+      };
+    },
+  } satisfies EnterpriseAPI,
+
   // Remote control methods
   remote: {
     getConfig: (): Promise<RemoteConfig> => ipcRenderer.invoke('remote.getConfig'),
@@ -669,6 +699,7 @@ declare global {
           ...args: unknown[]
         ) => Promise<{ success: boolean; error?: string }>;
       };
+      enterprise: EnterpriseAPI;
       remote: {
         getConfig: () => Promise<RemoteConfig>;
         getStatus: () => Promise<{

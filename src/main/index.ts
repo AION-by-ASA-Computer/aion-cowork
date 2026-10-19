@@ -64,6 +64,8 @@ import { remoteManager, type AgentExecutor } from './remote/remote-manager';
 import { remoteConfigStore } from './remote/remote-config-store';
 import type { GatewayConfig, FeishuChannelConfig, ChannelType } from './remote/types';
 import { startNavServer, stopNavServer } from './nav-server';
+import { registerEnterpriseIpc } from './enterprise/enterprise-ipc';
+import { ENTERPRISE_STATUS_CHANNEL } from '../shared/enterprise-types';
 import {
   ScheduledTaskManager,
   type ScheduledTaskCreateInput,
@@ -615,7 +617,7 @@ function createWindow() {
       type: 'config.status',
       payload: {
         isConfigured,
-        config: configStore.getAll(),
+        config: configStore.getAllRedacted(),
       },
     });
 
@@ -1368,6 +1370,8 @@ app
     buildMacMenu();
     setupTray();
 
+    enterpriseService.startScheduler();
+
     // Show window after core managers are ready so first-load actions can be handled.
     createWindow();
 
@@ -1922,7 +1926,7 @@ ipcMain.handle('dialog.selectFiles', async () => {
 // Config IPC handlers
 ipcMain.handle('config.get', () => {
   try {
-    return configStore.getAll();
+    return configStore.getAllRedacted();
   } catch (error) {
     logError('[Config] Error getting config:', error);
     return {};
@@ -1973,7 +1977,7 @@ const syncConfigAfterMutation = async (previousConfig: AppConfig) => {
     type: 'config.status',
     payload: {
       isConfigured,
-      config: updatedConfig,
+      config: configStore.redactManagedSecrets(updatedConfig),
     },
   });
   log('[Config] Notified renderer of config update, isConfigured:', isConfigured);
@@ -1981,8 +1985,21 @@ const syncConfigAfterMutation = async (previousConfig: AppConfig) => {
   // Sync plaintext config file with updated safe fields
   exportOnConfigChange();
 
-  return updatedConfig;
+  return configStore.redactManagedSecrets(updatedConfig);
 };
+
+// Enterprise (AION Agent) mode: IPC + token refresh scheduler
+const enterpriseService = registerEnterpriseIpc({
+  config: configStore,
+  syncConfigAfterMutation,
+  emitStatus: (payload) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(ENTERPRISE_STATUS_CHANNEL, payload);
+    }
+  },
+  clientVersion: app.getVersion(),
+  log,
+});
 
 ipcMain.handle('config.save', async (_event, newConfig: Partial<AppConfig>) => {
   log('[Config] Saving config:', {
@@ -2322,7 +2339,7 @@ ipcMain.handle('skills.setStoragePath', async (_event, targetPath: string, migra
     type: 'config.status',
     payload: {
       isConfigured: configStore.isConfigured(),
-      config: configStore.getAll(),
+      config: configStore.getAllRedacted(),
     },
   });
   return { success: true, ...result };
@@ -3166,7 +3183,7 @@ ipcMain.handle('memory.setEnabled', (_event, enabled: boolean) => {
     type: 'config.status',
     payload: {
       isConfigured: configStore.isConfigured(),
-      config: configStore.getAll(),
+      config: configStore.getAllRedacted(),
     },
   });
   return result;
@@ -3378,7 +3395,7 @@ async function handleClientEvent(event: ClientEvent): Promise<unknown> {
           type: 'config.status',
           payload: {
             isConfigured: configStore.isConfigured(),
-            config: configStore.getAll(),
+            config: configStore.getAllRedacted(),
           },
         });
       }

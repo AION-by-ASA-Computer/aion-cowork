@@ -15,6 +15,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import Store, { type Options as StoreOptions } from 'electron-store';
 import { log, logWarn } from '../utils/logger';
+import { MANAGED_AION_SET_ID, type ManagedAionSetInput } from '../../shared/enterprise-types';
 import {
   createEncryptedStoreWithKeyRotation,
   getLegacyDerivedKeyHexes,
@@ -70,6 +71,8 @@ export interface ApiConfigSet {
   id: ConfigSetId;
   name: string;
   isSystem?: boolean;
+  /** Set owned by the enterprise login flow; not editable from the renderer. */
+  managed?: 'aion';
   provider: ProviderType;
   customProtocol: CustomProtocolType;
   activeProfileKey: ProviderProfileKey;
@@ -158,6 +161,13 @@ export interface MemoryRuntimeConfig {
 }
 
 const DEFAULT_CONFIG_SET_ID = 'default';
+/** Fields projected from the active set; never exported/imported while a managed set is active. */
+const MANAGED_PROJECTED_FIELDS = new Set<keyof AppConfig>([
+  'model',
+  'provider',
+  'contextWindow',
+  'maxTokens',
+]);
 const MAX_CONFIG_SET_COUNT = 20;
 const LOCAL_ANTHROPIC_PLACEHOLDER_KEY = 'sk-ant-local-proxy';
 const DIRECT_READ_KEYS = new Set<keyof AppConfig>([
@@ -849,6 +859,7 @@ export class ConfigStore {
       id,
       name,
       isSystem: toBoolean(rawSet?.isSystem, Boolean(fallback.isSystem)),
+      ...(rawSet?.managed === 'aion' ? { managed: 'aion' as const } : {}),
       provider,
       customProtocol,
       activeProfileKey,
@@ -1227,7 +1238,7 @@ export class ConfigStore {
    */
   createSet(payload: CreateConfigSetPayload): AppConfig {
     const current = this.getAll();
-    if (current.configSets.length >= MAX_CONFIG_SET_COUNT) {
+    if (current.configSets.filter((set) => !set.managed).length >= MAX_CONFIG_SET_COUNT) {
       throw new Error(`Config set limit reached: max ${MAX_CONFIG_SET_COUNT}`);
     }
 
@@ -1252,16 +1263,23 @@ export class ConfigStore {
         customProtocol: seedProtocol,
       });
     } else {
+      const requestedSource = current.configSets.find((set) => set.id === payload.fromSetId);
+      if (requestedSource?.managed) {
+        throw new Error('Managed config set cannot be cloned');
+      }
+      const selectable = current.configSets.filter((set) => !set.managed);
       const source =
-        current.configSets.find((set) => set.id === payload.fromSetId) ||
-        current.configSets.find((set) => set.id === current.activeConfigSetId) ||
-        current.configSets[0];
+        requestedSource ||
+        selectable.find((set) => set.id === current.activeConfigSetId) ||
+        selectable.find((set) => set.isSystem) ||
+        selectable[0];
 
       if (!source) {
         throw new Error('Config set clone source not found');
       }
 
       const cloned = this.cloneConfigSet(source);
+      delete cloned.managed;
       newSet = {
         ...cloned,
         id,
@@ -1283,6 +1301,9 @@ export class ConfigStore {
     const target = current.configSets.find((set) => set.id === payload.id);
     if (!target) {
       throw new Error('Config set not found');
+    }
+    if (target.managed) {
+      throw new Error('Managed config set cannot be renamed');
     }
 
     const nextName = this.buildUniqueConfigSetName(payload.name, current.configSets, payload.id);
@@ -1310,6 +1331,9 @@ export class ConfigStore {
     }
     if (target.isSystem) {
       throw new Error('System config set cannot be deleted');
+    }
+    if (target.managed) {
+      throw new Error('Managed config set cannot be deleted');
     }
     if (current.configSets.length <= 1) {
       throw new Error('At least one config set must be kept');
@@ -1340,6 +1364,121 @@ export class ConfigStore {
   }
 
   /**
+   * Renderer-supplied config sets can never create, edit or drop a managed set:
+   * drop any managed/colliding entries and re-insert the stored managed sets.
+   */
+  private preserveManagedSets(stored: ApiConfigSet[], incoming: ApiConfigSet[]): ApiConfigSet[] {
+    const storedManaged = stored.filter((set) => set.managed);
+    const result = incoming.filter((set) => !set.managed && set.id !== MANAGED_AION_SET_ID);
+    for (const managedSet of storedManaged) {
+      const index = stored.findIndex((set) => set.id === managedSet.id);
+      result.splice(Math.min(index, result.length), 0, this.cloneConfigSet(managedSet));
+    }
+    return result;
+  }
+
+  /**
+   * Create or update the enterprise-managed config set (main-process only).
+   * Bypasses the renderer guards. Does not steal the active set after creation.
+   */
+  applyManagedAionSet(input: ManagedAionSetInput): AppConfig {
+    const current = this.getAll();
+    const existing = current.configSets.find((set) => set.id === MANAGED_AION_SET_ID);
+    const profiles = this.cloneProfiles(existing?.profiles);
+    const previousProfile = profiles['custom:openai'];
+    profiles['custom:openai'] = this.normalizeProfile('custom:openai', {
+      ...previousProfile,
+      apiKey: input.token,
+      baseUrl: `${input.endpoint.trim().replace(/\/+$/, '')}/v1/llm`,
+      model: input.model,
+    });
+    const unchanged =
+      existing &&
+      existing.managed === 'aion' &&
+      JSON.stringify(existing.profiles['custom:openai']) ===
+        JSON.stringify(profiles['custom:openai']);
+    const nextSet: ApiConfigSet = {
+      id: MANAGED_AION_SET_ID,
+      name: 'AION Enterprise',
+      isSystem: false,
+      managed: 'aion',
+      provider: 'custom',
+      customProtocol: 'openai',
+      activeProfileKey: 'custom:openai',
+      profiles,
+      enableThinking: existing?.enableThinking ?? false,
+      updatedAt: unchanged && existing ? existing.updatedAt : nowISO(),
+    };
+
+    const otherSets = current.configSets.map((set) => this.cloneConfigSet(set));
+    const existingIndex = otherSets.findIndex((set) => set.id === MANAGED_AION_SET_ID);
+    if (existingIndex >= 0) {
+      otherSets[existingIndex] = nextSet;
+    } else {
+      otherSets.push(nextSet);
+    }
+
+    const keepActive =
+      Boolean(existing) &&
+      (current.activeConfigSetId === MANAGED_AION_SET_ID ||
+        this.hasUsableCredentialsForActiveSet(current));
+    const nextActive = keepActive ? current.activeConfigSetId : MANAGED_AION_SET_ID;
+
+    this.saveConfig(this.composeProjectedConfig(current, otherSets, nextActive));
+    return this.getAll();
+  }
+
+  /** Remove the enterprise-managed set and fall back to the system (or first usable) set. */
+  removeManagedAionSet(): AppConfig {
+    const current = this.getAll();
+    if (!current.configSets.some((set) => set.id === MANAGED_AION_SET_ID)) {
+      return current;
+    }
+    const nextSets = current.configSets
+      .filter((set) => set.id !== MANAGED_AION_SET_ID)
+      .map((set) => this.cloneConfigSet(set));
+    const fallback =
+      nextSets.find((set) => set.isSystem)?.id ||
+      nextSets[0]?.id ||
+      DEFAULT_CONFIG_SET_ID;
+    const nextActive =
+      current.activeConfigSetId === MANAGED_AION_SET_ID ? fallback : current.activeConfigSetId;
+    this.saveConfig(this.composeProjectedConfig(current, nextSets, nextActive));
+    return this.getAll();
+  }
+
+  /**
+   * Config for the renderer: secrets of managed sets are blanked. Main-process
+   * consumers must keep using getAll().
+   */
+  getAllRedacted(): AppConfig {
+    return this.redactManagedSecrets(this.getAll());
+  }
+
+  redactManagedSecrets(config: AppConfig): AppConfig {
+    const activeManaged = config.configSets.some(
+      (set) => set.id === config.activeConfigSetId && set.managed
+    );
+    const blankProfiles = <T extends Partial<Record<ProviderProfileKey, ProviderProfile>>>(
+      profiles: T
+    ): T => {
+      const out = { ...profiles } as Record<string, ProviderProfile | undefined>;
+      for (const key of Object.keys(out)) {
+        const profile = out[key];
+        if (profile) out[key] = { ...profile, apiKey: '' };
+      }
+      return out as T;
+    };
+    return {
+      ...config,
+      ...(activeManaged ? { apiKey: '', profiles: blankProfiles(config.profiles) } : {}),
+      configSets: config.configSets.map((set) =>
+        set.managed ? { ...set, profiles: blankProfiles(set.profiles) } : set
+      ),
+    };
+  }
+
+  /**
    * Update multiple config values
    */
   update(updates: Partial<AppConfig>): void {
@@ -1357,7 +1496,7 @@ export class ConfigStore {
         profiles: this.cloneProfiles(current.profiles),
         enableThinking: current.enableThinking,
       });
-      nextConfigSets = normalizedSets;
+      nextConfigSets = this.preserveManagedSets(current.configSets, normalizedSets);
     }
 
     const requestedActiveConfigSetId =
@@ -1380,40 +1519,44 @@ export class ConfigStore {
       defaultProtocolForProvider(targetSet.provider)
     );
 
+    // Managed (enterprise) sets only accept enableThinking from the renderer path.
+    const activeUpdates: Partial<AppConfig> = targetSet.managed
+      ? { enableThinking: updates.enableThinking }
+      : updates;
     const mutatesActiveSet =
-      updates.profiles !== undefined ||
-      updates.activeProfileKey !== undefined ||
-      updates.provider !== undefined ||
-      updates.customProtocol !== undefined ||
-      updates.apiKey !== undefined ||
-      updates.baseUrl !== undefined ||
-      updates.model !== undefined ||
-      updates.enableThinking !== undefined;
+      activeUpdates.profiles !== undefined ||
+      activeUpdates.activeProfileKey !== undefined ||
+      activeUpdates.provider !== undefined ||
+      activeUpdates.customProtocol !== undefined ||
+      activeUpdates.apiKey !== undefined ||
+      activeUpdates.baseUrl !== undefined ||
+      activeUpdates.model !== undefined ||
+      activeUpdates.enableThinking !== undefined;
 
     if (mutatesActiveSet) {
-      if (updates.profiles) {
+      if (activeUpdates.profiles) {
         for (const key of PROFILE_KEYS) {
-          if (updates.profiles[key]) {
-            nextProfiles[key] = this.normalizeProfile(key, updates.profiles[key]);
+          if (activeUpdates.profiles[key]) {
+            nextProfiles[key] = this.normalizeProfile(key, activeUpdates.profiles[key]);
           }
         }
       }
 
-      if (isProfileKey(updates.activeProfileKey)) {
-        nextActiveProfileKey = updates.activeProfileKey;
+      if (isProfileKey(activeUpdates.activeProfileKey)) {
+        nextActiveProfileKey = activeUpdates.activeProfileKey;
         const fromProfile = profileKeyToProvider(nextActiveProfileKey);
         nextProvider = fromProfile.provider;
         nextCustomProtocol = fromProfile.customProtocol;
       }
 
-      if (updates.provider || updates.customProtocol) {
-        const requestedProvider = isProviderType(updates.provider)
-          ? updates.provider
+      if (activeUpdates.provider || activeUpdates.customProtocol) {
+        const requestedProvider = isProviderType(activeUpdates.provider)
+          ? activeUpdates.provider
           : nextProvider;
         const requestedProtocol =
           requestedProvider === 'custom'
-            ? isCustomProtocol(updates.customProtocol)
-              ? updates.customProtocol
+            ? isCustomProtocol(activeUpdates.customProtocol)
+              ? activeUpdates.customProtocol
               : nextCustomProtocol
             : defaultProtocolForProvider(requestedProvider);
         nextActiveProfileKey = profileKeyFromProvider(requestedProvider, requestedProtocol);
@@ -1425,15 +1568,15 @@ export class ConfigStore {
       const nextActiveProfile = {
         ...nextProfiles[nextActiveProfileKey],
       };
-      if (updates.apiKey !== undefined) {
-        nextActiveProfile.apiKey = updates.apiKey;
+      if (activeUpdates.apiKey !== undefined) {
+        nextActiveProfile.apiKey = activeUpdates.apiKey;
       }
-      if (updates.baseUrl !== undefined) {
-        const baseUrl = updates.baseUrl?.trim();
+      if (activeUpdates.baseUrl !== undefined) {
+        const baseUrl = activeUpdates.baseUrl?.trim();
         nextActiveProfile.baseUrl = baseUrl ?? '';
       }
-      if (updates.model !== undefined) {
-        const model = updates.model?.trim();
+      if (activeUpdates.model !== undefined) {
+        const model = activeUpdates.model?.trim();
         nextActiveProfile.model = model ?? '';
       }
       nextProfiles[nextActiveProfileKey] = this.normalizeProfile(
@@ -1448,7 +1591,7 @@ export class ConfigStore {
         activeProfileKey: nextActiveProfileKey,
         profiles: nextProfiles,
         enableThinking:
-          updates.enableThinking !== undefined ? updates.enableThinking : targetSet.enableThinking,
+          activeUpdates.enableThinking !== undefined ? activeUpdates.enableThinking : targetSet.enableThinking,
         updatedAt: nowISO(),
       };
 
@@ -1742,7 +1885,9 @@ export class ConfigStore {
   exportSafeConfig(): void {
     const config = this.getAll();
     const safeSubset: Partial<AppConfig> = {};
+    const skipProjected = this.isActiveSetManaged(config);
     for (const key of EXPORTABLE_FIELDS) {
+      if (skipProjected && MANAGED_PROJECTED_FIELDS.has(key)) continue;
       if (config[key] !== undefined) {
         (safeSubset as Record<string, unknown>)[key] = config[key];
       }
@@ -1783,7 +1928,9 @@ export class ConfigStore {
 
     // Only apply fields that are in the exportable set AND pass type validation
     const updates: Partial<AppConfig> = {};
+    const skipProjected = this.isActiveSetManaged(this.getAll());
     for (const key of EXPORTABLE_FIELDS) {
+      if (skipProjected && MANAGED_PROJECTED_FIELDS.has(key)) continue;
       if (key in parsed && parsed[key] !== undefined) {
         const validator = FIELD_VALIDATORS[key];
         if (validator && !validator(parsed[key])) {
@@ -1800,6 +1947,10 @@ export class ConfigStore {
       return true;
     }
     return false;
+  }
+
+  private isActiveSetManaged(config: AppConfig): boolean {
+    return config.configSets.some((set) => set.id === config.activeConfigSetId && set.managed);
   }
 
   /**

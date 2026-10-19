@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useCallback } from 'react';
+import { Suspense, lazy, useEffect, useRef, useCallback, useState } from 'react';
 import { useAppStore } from './store';
 import {
   useActiveSessionId,
@@ -15,6 +15,7 @@ import {
 import { useIPC } from './hooks/useIPC';
 import { useModelCycleShortcut } from './hooks/useModelCycleShortcut';
 import { useWindowSize } from './hooks/useWindowSize';
+import { useEnterpriseStatus } from './hooks/useEnterpriseStatus';
 import { Sidebar } from './components/Sidebar';
 import { WelcomeView } from './components/WelcomeView';
 import { PermissionDialog } from './components/PermissionDialog';
@@ -35,6 +36,11 @@ const ContextPanel = lazy(() =>
 );
 const ConfigModal = lazy(() =>
   import('./components/ConfigModal').then((module) => ({ default: module.ConfigModal }))
+);
+const EnterpriseOnboarding = lazy(() =>
+  import('./components/EnterpriseOnboarding').then((module) => ({
+    default: module.EnterpriseOnboarding,
+  }))
 );
 const SettingsPanel = lazy(() =>
   import('./components/SettingsPanel').then((module) => ({ default: module.SettingsPanel }))
@@ -84,6 +90,15 @@ function App() {
   const { listSessions, isElectron } = useIPC();
   const { width } = useWindowSize();
   useModelCycleShortcut();
+  // Enterprise first-run chooser. Keep the wizard mounted once shown, because the
+  // status flips onboardingRequired=false mid-flow (e.g. right after login).
+  const { status: enterpriseStatus } = useEnterpriseStatus();
+  const [enterpriseWizardOpen, setEnterpriseWizardOpen] = useState(false);
+  useEffect(() => {
+    if (enterpriseStatus?.onboardingRequired) setEnterpriseWizardOpen(true);
+  }, [enterpriseStatus?.onboardingRequired]);
+  const showEnterpriseOnboarding =
+    Boolean(enterpriseStatus?.onboardingRequired) || enterpriseWizardOpen;
   const initialized = useRef(false);
   const sidebarBeforeSettings = useRef(false);
 
@@ -239,6 +254,15 @@ function App() {
           />
         </Suspense>
       </PanelErrorBoundary>
+
+      {/* Enterprise (AION Agent) first-run onboarding */}
+      {showEnterpriseOnboarding && (
+        <PanelErrorBoundary name="EnterpriseOnboarding" fallback={null}>
+          <Suspense fallback={null}>
+            <EnterpriseOnboarding onClose={() => setEnterpriseWizardOpen(false)} />
+          </Suspense>
+        </PanelErrorBoundary>
+      )}
 
       {/* Sandbox Setup Dialog */}
       {showSandboxSetup && (

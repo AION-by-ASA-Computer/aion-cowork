@@ -1799,6 +1799,9 @@ ${hints.join('\n')}
         modelBaseUrl: piModel.baseUrl,
         effectiveCwd,
         apiKey,
+        excludeApiKey:
+          runtimeConfig.configSets.find((set) => set.id === runtimeConfig.activeConfigSetId)
+            ?.managed === 'aion',
         subagent: configStore.getAll().subagent,
       });
       const skillPaths = await this.resolveSkillPaths(session.id);

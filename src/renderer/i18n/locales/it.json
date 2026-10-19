@@ -70,7 +70,9 @@
     "logsDesc": "Visualizza ed esporta i log dell'applicazione",
     "panelDesc": "Configura area di lavoro, strumenti e comportamento dell'account.",
     "general": "Generale",
-    "generalDesc": "Aspetto, lingua e preferenze"
+    "generalDesc": "Aspetto, lingua e preferenze",
+    "account": "Account AION",
+    "accountDesc": "Collegamento al server AION Agent aziendale"
   },
   "general": {
     "appearance": "Aspetto",
@@ -1071,5 +1073,113 @@
     "completed": "Completato",
     "inDuration": "in {{duration}}",
     "showResult": "Mostra risultato"
+  },
+  "enterprise": {
+    "brand": "AION Agent",
+    "back": "Indietro",
+    "next": "Continua",
+    "retry": "Riprova",
+    "choose": {
+      "title": "Come vuoi usare AION Cowork?",
+      "subtitle": "Potrai cambiare scelta più tardi in Impostazioni > Account AION.",
+      "standalone": "Standalone (usa le tue chiavi)",
+      "standaloneDesc": "Configura il tuo provider API e le tue chiavi. Nulla viene condiviso con un server aziendale.",
+      "enterprise": "Aziendale (AION Agent)",
+      "enterpriseDesc": "Accedi al server AION Agent della tua azienda. Modelli e accessi sono gestiti centralmente."
+    },
+    "endpoint": {
+      "title": "Collegati ad AION Agent",
+      "hint": "Inserisci l'indirizzo del server fornito dall'amministratore, ad esempio https://agent.azienda.it/api.",
+      "label": "Indirizzo del server",
+      "verify": "Verifica",
+      "verifying": "Verifica in corso...",
+      "empty": "Inserisci l'indirizzo del server.",
+      "invalid": "L'indirizzo non è valido. Usa un URL http:// o https://.",
+      "verified": "Server AION Agent verificato",
+      "unverified": "Server raggiungibile, ma non è stato possibile verificarne la versione",
+      "serverVersion": "Versione server",
+      "loginMode": "Modalità di accesso",
+      "twoFactor": "È richiesta l'autenticazione a due fattori."
+    },
+    "login": {
+      "title": "Accedi",
+      "username": "Nome utente",
+      "password": "Password",
+      "signIn": "Accedi",
+      "signingIn": "Accesso in corso...",
+      "ssoNotAvailable": "Questo server richiede il single sign-on (SSO) o disabilita l'accesso con password. L'accesso SSO dall'app desktop non è ancora disponibile. Chiedi all'amministratore di abilitare l'accesso con password per i client desktop."
+    },
+    "mfa": {
+      "verifyTitle": "Verifica a due fattori",
+      "verifyHint": "Inserisci il codice a 6 cifre della tua app di autenticazione.",
+      "enrollTitle": "Configura l'autenticazione a due fattori",
+      "enrollHint": "Inquadra il codice QR con l'app di autenticazione (o inserisci la chiave manualmente), poi digita il codice mostrato.",
+      "qrAlt": "Codice QR per l'app di autenticazione",
+      "secret": "Chiave segreta",
+      "code": "Codice di verifica",
+      "confirm": "Conferma"
+    },
+    "changePassword": {
+      "title": "Cambia la password",
+      "hint": "L'amministratore richiede di scegliere una nuova password prima di continuare.",
+      "current": "Password attuale",
+      "new": "Nuova password",
+      "confirm": "Conferma nuova password",
+      "submit": "Cambia password",
+      "mismatch": "Le password non coincidono."
+    },
+    "model": {
+      "title": "Scegli un modello",
+      "hint": "Seleziona il modello che AION Cowork userà. Potrai cambiarlo più tardi.",
+      "loading": "Caricamento modelli...",
+      "empty": "Nessun modello disponibile per il tuo account.",
+      "default": "Predefinito",
+      "confirm": "Usa questo modello"
+    },
+    "done": {
+      "title": "Tutto pronto",
+      "subtitle": "AION Cowork è collegato al tuo server AION Agent.",
+      "start": "Inizia"
+    },
+    "errors": {
+      "generic": "Qualcosa è andato storto. Riprova.",
+      "unreachable": "Impossibile raggiungere il server. Controlla l'indirizzo e la connessione di rete.",
+      "notAion": "Questo indirizzo non sembra un server AION Agent.",
+      "insecureHttp": "La connessione non è cifrata (http). Usa https, a meno che non si tratti di una rete interna attendibile.",
+      "ssoNotAvailable": "Questo server richiede il single sign-on (SSO) o disabilita l'accesso con password. L'accesso SSO dall'app desktop non è ancora disponibile.",
+      "tempPasswordExpired": "La password temporanea è scaduta. Chiedi all'amministratore una nuova password.",
+      "mfaLocked": "Troppi tentativi. Riprova tra {{seconds}} secondi.",
+      "sessionExpired": "La sessione è scaduta. Accedi di nuovo."
+    },
+    "account": {
+      "unavailable": "La modalità aziendale non è disponibile in questa build.",
+      "connection": "Connessione",
+      "connectionDesc": "Stato del collegamento al server AION Agent.",
+      "mode": "Modalità",
+      "modeStandalone": "Standalone",
+      "modeEnterprise": "Aziendale (AION Agent)",
+      "endpoint": "Server",
+      "user": "Utente",
+      "notLoggedIn": "Non autenticato",
+      "expiresAt": "Scadenza sessione",
+      "serverVersion": "Versione server",
+      "model": "Modello",
+      "connectTitle": "Collega ad AION Agent",
+      "connectDesc": "Usa il server AION Agent della tua azienda al posto delle tue chiavi API.",
+      "connect": "Collega ad AION Agent",
+      "sessionExpiredTitle": "Sessione scaduta",
+      "sessionExpiredDesc": "Accedi di nuovo per continuare a usare AION Agent.",
+      "loginTitle": "Accedi",
+      "actions": "Sessione",
+      "refresh": "Sincronizza / Aggiorna sessione",
+      "refreshed": "Sessione aggiornata.",
+      "changeModel": "Cambia modello",
+      "modelChanged": "Modello aggiornato.",
+      "logout": "Esci",
+      "disconnectTitle": "Disconnetti",
+      "disconnectDesc": "Esce, rimuove la configurazione gestita e torna alla modalità standalone.",
+      "disconnect": "Disconnetti",
+      "disconnectConfirm": "Disconnettere da AION Agent e tornare alla modalità standalone? Dovrai accedere di nuovo per ricollegarti."
+    }
   }
 }

@@ -6,9 +6,14 @@ import type { AppConfig } from './config-store';
  * already-running session manager picks up numeric-only overrides.
  */
 export function buildAgentRuntimeSignature(config: AppConfig): string {
+  // Managed (enterprise) sets rotate their token often; the runner re-applies the
+  // runtime API key on every run, so a token refresh must not reload the runner.
+  const activeSet = config.configSets?.find((set) => set.id === config.activeConfigSetId);
+  const managed = activeSet?.managed === 'aion';
   return JSON.stringify({
     provider: config.provider,
-    apiKey: config.apiKey,
+    apiKey: managed ? undefined : config.apiKey,
+    managed: managed || undefined,
     baseUrl: config.baseUrl,
     customProtocol: config.customProtocol,
     model: config.model,

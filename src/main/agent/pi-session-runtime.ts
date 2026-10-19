@@ -9,6 +9,8 @@ export interface PiSessionRuntimeSignatureInput {
   modelBaseUrl?: string;
   effectiveCwd?: string;
   apiKey?: string;
+  /** Managed (rotating-token) sets: key is applied per run, so exclude it from the signature. */
+  excludeApiKey?: boolean;
   subagent?: SubagentConfig;
 }
 
@@ -32,7 +34,7 @@ export function buildPiSessionRuntimeSignature(input: PiSessionRuntimeSignatureI
     modelApi: normalizeText(input.modelApi),
     modelBaseUrl: normalizeText(input.modelBaseUrl).replace(/\/+$/, ''),
     effectiveCwd: normalizeText(input.effectiveCwd),
-    apiKeyFingerprint: fingerprintSecret(input.apiKey),
+    apiKeyFingerprint: input.excludeApiKey ? '' : fingerprintSecret(input.apiKey),
     subagent: input.subagent,
   });
 }

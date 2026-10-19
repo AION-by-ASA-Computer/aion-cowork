@@ -27,6 +27,7 @@ const VALID_TABS = new Set([
   'remote',
   'logs',
   'general',
+  'account',
 ]);
 
 let server: http.Server | null = null;

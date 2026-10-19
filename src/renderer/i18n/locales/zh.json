@@ -70,7 +70,9 @@
     "logsDesc": "查看和导出应用日志",
     "panelDesc": "配置工作区、工具以及账号相关行为。",
     "general": "通用",
-    "generalDesc": "外观、语言等通用偏好"
+    "generalDesc": "外观、语言等通用偏好",
+    "account": "AION Account",
+    "accountDesc": "Connection to your company's AION Agent server"
   },
   "general": {
     "appearance": "外观",
@@ -1036,5 +1038,113 @@
     "completed": "已完成",
     "inDuration": "耗时 {{duration}}",
     "showResult": "查看结果"
+  },
+  "enterprise": {
+    "brand": "AION Agent",
+    "back": "Back",
+    "next": "Continue",
+    "retry": "Retry",
+    "choose": {
+      "title": "How do you want to use AION Cowork?",
+      "subtitle": "You can change this later in Settings > AION Account.",
+      "standalone": "Standalone (use your own keys)",
+      "standaloneDesc": "Configure your own API provider and keys. Nothing is shared with a company server.",
+      "enterprise": "Enterprise (AION Agent)",
+      "enterpriseDesc": "Sign in to your company's AION Agent server. Models and access are managed centrally."
+    },
+    "endpoint": {
+      "title": "Connect to AION Agent",
+      "hint": "Enter the server address provided by your administrator, for example https://agent.company.com/api.",
+      "label": "Server address",
+      "verify": "Verify",
+      "verifying": "Verifying...",
+      "empty": "Enter the server address.",
+      "invalid": "The address is not valid. Use an http:// or https:// URL.",
+      "verified": "AION Agent server verified",
+      "unverified": "Server reachable, but its version could not be verified",
+      "serverVersion": "Server version",
+      "loginMode": "Login mode",
+      "twoFactor": "Two-factor authentication is required."
+    },
+    "login": {
+      "title": "Sign in",
+      "username": "Username",
+      "password": "Password",
+      "signIn": "Sign in",
+      "signingIn": "Signing in...",
+      "ssoNotAvailable": "This server requires single sign-on (SSO) or disables password login. SSO login from the desktop app is not available yet. Ask your administrator to enable password login for desktop clients."
+    },
+    "mfa": {
+      "verifyTitle": "Two-factor verification",
+      "verifyHint": "Enter the 6-digit code from your authenticator app.",
+      "enrollTitle": "Set up two-factor authentication",
+      "enrollHint": "Scan the QR code with your authenticator app (or enter the secret manually), then type the code it shows.",
+      "qrAlt": "QR code for the authenticator app",
+      "secret": "Secret key",
+      "code": "Verification code",
+      "confirm": "Confirm"
+    },
+    "changePassword": {
+      "title": "Change your password",
+      "hint": "Your administrator requires you to choose a new password before continuing.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Change password",
+      "mismatch": "The passwords do not match."
+    },
+    "model": {
+      "title": "Choose a model",
+      "hint": "Select the model AION Cowork will use. You can change it later.",
+      "loading": "Loading models...",
+      "empty": "No models are available for your account.",
+      "default": "Default",
+      "confirm": "Use this model"
+    },
+    "done": {
+      "title": "All set",
+      "subtitle": "AION Cowork is connected to your AION Agent server.",
+      "start": "Get started"
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "unreachable": "The server cannot be reached. Check the address and your network connection.",
+      "notAion": "This address does not look like an AION Agent server.",
+      "insecureHttp": "The connection is not encrypted (http). Use https unless this is a trusted internal network.",
+      "ssoNotAvailable": "This server requires single sign-on (SSO) or disables password login. SSO login from the desktop app is not available yet.",
+      "tempPasswordExpired": "The temporary password has expired. Ask your administrator for a new one.",
+      "mfaLocked": "Too many attempts. Try again in {{seconds}} seconds.",
+      "sessionExpired": "Your session has expired. Sign in again."
+    },
+    "account": {
+      "unavailable": "Enterprise mode is not available in this build.",
+      "connection": "Connection",
+      "connectionDesc": "Status of the link to your AION Agent server.",
+      "mode": "Mode",
+      "modeStandalone": "Standalone",
+      "modeEnterprise": "Enterprise (AION Agent)",
+      "endpoint": "Server",
+      "user": "User",
+      "notLoggedIn": "Not signed in",
+      "expiresAt": "Session expires",
+      "serverVersion": "Server version",
+      "model": "Model",
+      "connectTitle": "Connect to AION Agent",
+      "connectDesc": "Use your company's AION Agent server instead of your own API keys.",
+      "connect": "Connect to AION Agent",
+      "sessionExpiredTitle": "Session expired",
+      "sessionExpiredDesc": "Sign in again to keep using AION Agent.",
+      "loginTitle": "Sign in",
+      "actions": "Session",
+      "refresh": "Sync / Refresh session",
+      "refreshed": "Session refreshed.",
+      "changeModel": "Change model",
+      "modelChanged": "Model updated.",
+      "logout": "Sign out",
+      "disconnectTitle": "Disconnect",
+      "disconnectDesc": "Sign out, remove the managed configuration and return to standalone mode.",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Disconnect from AION Agent and return to standalone mode? You will need to sign in again to reconnect."
+    }
   }
 }
