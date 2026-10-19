@@ -5,6 +5,12 @@ import type { EnterpriseError, EnterpriseStatus } from '../../../shared/enterpri
 import { getEnterpriseApi } from '../../utils/enterprise-api';
 import { formatExpiry, getEnterpriseViewState } from '../../utils/enterprise-helpers';
 import { setEnterpriseStatus, useEnterpriseStatus } from '../../hooks/useEnterpriseStatus';
+import { useManagedProfiles } from '../../hooks/useManagedProfiles';
+import {
+  formatRelativeTime,
+  getSyncErrorKey,
+  getSyncViewModel,
+} from '../../utils/enterprise-profiles';
 import {
   EnterpriseLoginPanel,
   EnterpriseModelPicker,
@@ -26,6 +32,123 @@ function Row({ label, value }: { label: string; value?: string | null }) {
       <span className="text-text-muted flex-shrink-0">{label}</span>
       <span className="text-text-primary text-right break-all select-text">{value || '-'}</span>
     </div>
+  );
+}
+
+function SyncSection({
+  status,
+  onStatus,
+}: {
+  status: EnterpriseStatus;
+  onStatus: (s: EnterpriseStatus) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const { profiles } = useManagedProfiles();
+  const [requesting, setRequesting] = useState(false);
+  const vm = getSyncViewModel(status.sync);
+  const syncing = vm.state === 'syncing' || requesting;
+  const relative = formatRelativeTime(vm.lastSyncAt, Date.now(), i18n.language);
+  const absolute = formatExpiry(vm.lastSyncAt, i18n.language);
+  const errorKey = getSyncErrorKey(vm.errorCode);
+
+  const syncNow = async () => {
+    const api = getEnterpriseApi();
+    if (!api || typeof api.syncNow !== 'function' || syncing) return;
+    setRequesting(true);
+    try {
+      onStatus(await api.syncNow());
+    } catch (err) {
+      console.error('[enterprise] syncNow failed', err);
+    } finally {
+      setRequesting(false);
+    }
+  };
+
+  const setAllowLocal = async (allow: boolean) => {
+    const api = getEnterpriseApi();
+    if (!api || typeof api.setAllowLocalMcp !== 'function') return;
+    try {
+      onStatus(await api.setAllowLocalMcp(allow));
+    } catch (err) {
+      console.error('[enterprise] setAllowLocalMcp failed', err);
+    }
+  };
+  const localMcpCount = status.sync?.localMcpCount ?? 0;
+
+  return (
+    <SettingsContentSection
+      title={t('enterprise.sync.title')}
+      description={t('enterprise.sync.description')}
+    >
+      <div className="rounded-lg border border-border-subtle px-4 py-2 divide-y divide-border-muted">
+        <Row label={t('enterprise.sync.state')} value={t(`enterprise.sync.states.${vm.state}`)} />
+        <div className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
+          <span className="text-text-muted flex-shrink-0">{t('enterprise.sync.lastSync')}</span>
+          <span className="text-text-primary text-right" title={absolute ?? undefined}>
+            {relative ?? t('enterprise.sync.never')}
+          </span>
+        </div>
+        <Row label={t('enterprise.sync.profiles')} value={String(vm.counts.profiles)} />
+        <Row label={t('enterprise.sync.skills')} value={String(vm.counts.skills)} />
+        <Row label={t('enterprise.sync.mcpServers')} value={String(vm.counts.mcpServers)} />
+      </div>
+      {localMcpCount > 0 && (
+        <label className="flex items-start gap-2 rounded-lg border border-border-subtle px-4 py-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={status.sync?.allowLocalMcp === true}
+            onChange={(e) => void setAllowLocal(e.target.checked)}
+          />
+          <span>
+            <span className="block text-text-primary">{t('enterprise.sync.allowLocalMcp')}</span>
+            <span className="block text-xs text-text-muted">
+              {t('enterprise.sync.allowLocalMcpWarning', { count: localMcpCount })}
+            </span>
+          </span>
+        </label>
+      )}
+      {vm.state === 'unsupported' && (
+        <p className="text-xs text-text-muted">{t('enterprise.sync.unsupported')}</p>
+      )}
+      {vm.state === 'error' && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-sm text-error"
+        >
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span className="break-words">
+            {errorKey ? t(errorKey) : vm.errorMessage || t('enterprise.sync.errors.generic')}
+          </span>
+        </div>
+      )}
+      <div>
+        <button
+          type="button"
+          className={secondaryBtn}
+          onClick={() => void syncNow()}
+          disabled={syncing}
+        >
+          {syncing && <Loader2 className="w-4 h-4 animate-spin" />}
+          {syncing ? t('enterprise.sync.syncing') : t('enterprise.sync.syncNow')}
+        </button>
+      </div>
+      {profiles.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-text-primary mb-1">
+            {t('enterprise.sync.profilesList')}
+          </h4>
+          <ul className="rounded-lg border border-border-subtle divide-y divide-border-muted">
+            {profiles.map((p) => (
+              <li key={p.slug} className="px-4 py-2">
+                <div className="text-sm text-text-primary">{p.name}</div>
+                {p.description && <div className="text-xs text-text-muted">{p.description}</div>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </SettingsContentSection>
   );
 }
 
@@ -230,6 +353,10 @@ export function SettingsAccount() {
             </div>
           )}
         </SettingsContentSection>
+      )}
+
+      {isEnterprise && view === 'connected' && (
+        <SyncSection status={status} onStatus={(s) => setEnterpriseStatus(s)} />
       )}
 
       {isEnterprise && (

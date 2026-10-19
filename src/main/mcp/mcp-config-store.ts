@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import path from 'path';
 import type { MCPServerConfig } from './mcp-manager';
 import { log, logError } from '../utils/logger';
+import { MANAGED_MCP_ID_PREFIX } from '../../shared/enterprise-sync-types';
 import {
   deleteServerFromMcpDocument,
   normalizeMcpConfigDocument,
@@ -111,7 +112,16 @@ type McpConfigStoreShape = {
   mcp_servers?: unknown;
 };
 
-class MCPConfigStore {
+/** Thrown when a user-initiated write targets (or forges) an enterprise-managed MCP server. */
+export class ManagedMcpWriteError extends Error {
+  readonly code = 'managed_readonly';
+  constructor(message = 'This MCP server is managed by your organization and cannot be modified') {
+    super(message);
+    this.name = 'ManagedMcpWriteError';
+  }
+}
+
+export class MCPConfigStore {
   private store: Store<McpConfigStoreShape>;
 
   constructor() {
@@ -185,6 +195,8 @@ class MCPConfigStore {
    * Add or update a server configuration
    */
   saveServer(config: MCPServerConfig): void {
+    const blocked = this.checkUserWrite(config);
+    if (blocked) throw new ManagedMcpWriteError(blocked);
     const { server } = normalizeMcpServerEntry(config, undefined, new Set());
     if (!server) {
       logError('[MCPConfigStore] Refusing to save invalid MCP server config');
@@ -198,6 +210,8 @@ class MCPConfigStore {
    * Delete a server configuration
    */
   deleteServer(serverId: string): void {
+    const blocked = this.checkUserDelete(serverId);
+    if (blocked) throw new ManagedMcpWriteError(blocked);
     this.commitMcpConfigWrite(deleteServerFromMcpDocument(this.readStoreDocument(), serverId));
   }
 
@@ -206,7 +220,17 @@ class MCPConfigStore {
    * Unrecognized entries and the original collection shape are kept.
    */
   setServers(servers: MCPServerConfig[]): void {
-    const normalized = normalizeMcpConfigInput(servers);
+    // Managed entries are owned by the enterprise sync: ignore forged ones coming from the
+    // caller and keep the stored ones untouched.
+    const kept = this.getManagedServers();
+    const incoming = (Array.isArray(servers) ? servers : []).filter(
+      (s) =>
+        s &&
+        s.managed !== true &&
+        !(typeof s.id === 'string' && s.id.startsWith(MANAGED_MCP_ID_PREFIX)) &&
+        !kept.some((m) => m.name === s.name)
+    );
+    const normalized = normalizeMcpConfigInput([...incoming, ...kept]);
     if (normalized.error) {
       this.commitMcpConfigWrite({ ok: false, changed: false, error: normalized.error });
       return;
@@ -214,6 +238,49 @@ class MCPConfigStore {
     this.commitMcpConfigWrite(
       replaceRecognizedServersInMcpDocument(this.readStoreDocument(), normalized.servers)
     );
+  }
+
+  /** Managed (enterprise-synced) servers currently stored. */
+  getManagedServers(): MCPServerConfig[] {
+    return this.getServers().filter((s) => s.managed === true);
+  }
+
+  /**
+   * Returns an error message when a user-initiated save must be refused: forged `managed` flag,
+   * reserved managed id prefix, an existing managed entry, or a name clashing with a managed server.
+   */
+  checkUserWrite(config: MCPServerConfig): string | null {
+    const msg = 'This MCP server is managed by your organization and cannot be modified';
+    if (!config || typeof config !== 'object') return null;
+    if ((config as { managed?: unknown }).managed) return msg;
+    const id = typeof config.id === 'string' ? config.id : '';
+    if (id.startsWith(MANAGED_MCP_ID_PREFIX)) return msg;
+    const managed = this.getManagedServers();
+    if (managed.some((m) => m.id === id || (config.name && m.name === config.name))) return msg;
+    return null;
+  }
+
+  checkUserDelete(serverId: string): string | null {
+    const msg = 'This MCP server is managed by your organization and cannot be deleted';
+    if (typeof serverId === 'string' && serverId.startsWith(MANAGED_MCP_ID_PREFIX)) return msg;
+    if (this.getManagedServers().some((m) => m.id === serverId)) return msg;
+    return null;
+  }
+
+  /** Enterprise sync only: upserts a managed entry (bypasses the user guards). */
+  saveManagedServer(config: MCPServerConfig): void {
+    const { server } = normalizeMcpServerEntry({ ...config, managed: true }, undefined, new Set());
+    if (!server) {
+      logError('[MCPConfigStore] Refusing to save invalid managed MCP server config');
+      return;
+    }
+    this.commitMcpConfigWrite(upsertServerInMcpDocument(this.readStoreDocument(), server));
+  }
+
+  /** Enterprise sync only: removes a managed entry (no-op for non-managed ids). */
+  deleteManagedServer(serverId: string): void {
+    if (!this.getManagedServers().some((m) => m.id === serverId)) return;
+    this.commitMcpConfigWrite(deleteServerFromMcpDocument(this.readStoreDocument(), serverId));
   }
 
   /**

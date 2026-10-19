@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { useIPC } from '../hooks/useIPC';
+import { useManagedProfiles } from '../hooks/useManagedProfiles';
+import { ProfileSelector } from './ProfileSelector';
 import type { ContentBlock } from '../types';
 import { getInitialSessionTitle } from '../../shared/session-title';
 import {
@@ -40,6 +42,7 @@ export function WelcomeView() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { startSession, changeWorkingDir, isElectron } = useIPC();
   const workingDir = useAppStore((state) => state.workingDir);
+  const { profiles, selectedSlug, select: selectProfile } = useManagedProfiles();
   const setGlobalNotice = useAppStore((state) => state.setGlobalNotice);
   const isConfigured = useAppStore((state) => state.isConfigured);
   const setShowSettings = useAppStore((state) => state.setShowSettings);
@@ -349,7 +352,12 @@ export function WelcomeView() {
     setIsSubmitting(true);
     try {
       const sessionTitle = getInitialSessionTitle(currentPrompt, attachedFiles[0]?.name);
-      const session = await startSession(sessionTitle, contentBlocks, workingDir || undefined);
+      const session = await startSession(
+        sessionTitle,
+        contentBlocks,
+        workingDir || undefined,
+        selectedSlug ?? undefined
+      );
       if (session) {
         setPrompt('');
         if (textareaRef.current) {
@@ -616,6 +624,12 @@ export function WelcomeView() {
                   {workingDir ? workingDir.split(/[/\\]/).pop() : t('welcome.selectWorkingFolder')}
                 </span>
               </button>
+
+              <ProfileSelector
+                profiles={profiles}
+                selectedSlug={selectedSlug}
+                onSelect={selectProfile}
+              />
 
               {isElectron && (
                 <button

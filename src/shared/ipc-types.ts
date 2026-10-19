@@ -24,6 +24,8 @@ export interface McpServerConfig {
   url?: string;
   headers?: Record<string, string>;
   enabled: boolean;
+  /** Synced from AION Agent (enterprise): read-only for the user. */
+  managed?: boolean;
 }
 
 /** Tool exposed by an MCP server (mirrors MCPTool in mcp-manager.ts). */

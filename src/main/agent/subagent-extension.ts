@@ -1,3 +1,4 @@
+import { filterMcpToolsForProfile } from '../enterprise/engine-bridge';
 import { Type } from '@sinclair/typebox';
 import {
   createAgentSession,
@@ -104,7 +105,8 @@ function createSpawnSubagentTool(
   getParentAbortSignal: () => AbortSignal | null,
   activeSubagents: Map<string, Set<string>>,
   cwd: string,
-  sandboxIsolated: boolean
+  sandboxIsolated: boolean,
+  profileId?: string | null
 ): AgentRuntimeCustomTool {
   const config = configStore.getAll();
   const settings = config.subagentConfigError
@@ -322,7 +324,8 @@ function createSpawnSubagentTool(
         // Build MCP tools (minus spawn_subagent)
         let mcpCustomTools: ToolDefinition[] = [];
         if (mcpManager) {
-          const mcpTools = mcpManager.getTools();
+          // Subagents inherit the parent's profile MCP restriction (managed servers outside it stay unreachable).
+          const mcpTools = filterMcpToolsForProfile(mcpManager.getTools(), profileId);
           mcpCustomTools = mcpTools.map((mcpTool) => {
             const parameters = Type.Unsafe<Record<string, unknown>>(
               mcpTool.inputSchema as Record<string, unknown>
@@ -583,7 +586,8 @@ export class SubagentExtension implements AgentRuntimeExtension {
           this.getParentAbortSignal,
           this.activeSubagents,
           context.session.cwd || configStore.getAll()?.defaultWorkdir || process.cwd(),
-          context.sandboxIsolated ?? false
+          context.sandboxIsolated ?? false,
+          context.session.profileId
         ),
       ],
     };

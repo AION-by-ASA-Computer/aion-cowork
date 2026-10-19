@@ -35,6 +35,17 @@ describe('EnterpriseStore', () => {
     expect(s.get('onboardingDone')).toBe(false);
   });
 
+  it('allowLocalMcp defaults to false, persists, and resets on disconnect', () => {
+    const s = new EnterpriseStore();
+    expect(s.get('allowLocalMcp')).toBe(false);
+    s.set({ allowLocalMcp: true });
+    expect(s.get('allowLocalMcp')).toBe(true);
+    s.clearSession();
+    expect(s.get('allowLocalMcp')).toBe(true);
+    s.clearConnection();
+    expect(s.get('allowLocalMcp')).toBe(false);
+  });
+
   it('persists values and keeps the token out of snapshot()', () => {
     const s = new EnterpriseStore();
     s.set({

@@ -10,6 +10,13 @@ import {
   type EnterpriseProbeResult,
   type EnterpriseUser,
 } from '../../shared/enterprise-types';
+import type {
+  ClientBootstrap,
+  ManagedMcpServer,
+  ManagedMcpTransport,
+  ManagedProfile,
+  ManagedSkill,
+} from '../../shared/enterprise-sync-types';
 
 export const REQUEST_TIMEOUT_MS = 15000;
 export const REFRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -450,4 +457,220 @@ export function computeRefreshDelayMs(
     window = Math.min(window, remaining / 2);
   }
   return Math.min(Math.max(remaining - window, 0), MAX_TIMER_MS);
+}
+
+// ---- Phase 2: client bootstrap ------------------------------------------------
+
+export type BootstrapResult =
+  | { status: 'not_modified' }
+  | { status: 'ok'; etag: string; data: ClientBootstrap };
+
+export const BOOTSTRAP_LIMITS = {
+  profiles: 200,
+  skills: 500,
+  mcpServers: 200,
+  skillContentBytes: 512 * 1024,
+  instructionsChars: 200_000,
+  shortText: 2_000,
+  listItems: 500,
+} as const;
+
+export const MIN_SYNC_INTERVAL_SEC = 60;
+export const DEFAULT_SYNC_INTERVAL_SEC = 900;
+const MAX_SYNC_INTERVAL_SEC = 24 * 60 * 60;
+const SLUG_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
+
+function str(v: unknown, max: number = BOOTSTRAP_LIMITS.shortText): string {
+  return typeof v === 'string' ? v.slice(0, max) : '';
+}
+
+function strList(v: unknown, maxItems: number = BOOTSTRAP_LIMITS.listItems): string[] {
+  if (!Array.isArray(v)) return [];
+  const out: string[] = [];
+  for (const item of v) {
+    if (typeof item === 'string' && item && out.length < maxItems) out.push(item.slice(0, 500));
+  }
+  return out;
+}
+
+function rec(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+
+function mapProfile(raw: unknown): ManagedProfile | null {
+  const r = rec(raw);
+  if (!r || typeof r.slug !== 'string' || !SLUG_RE.test(r.slug)) return null;
+  const steps = typeof r.max_agent_steps === 'number' && r.max_agent_steps > 0 ? Math.floor(r.max_agent_steps) : undefined;
+  return {
+    slug: r.slug,
+    name: str(r.name, 200) || r.slug,
+    description: str(r.description),
+    instructions: str(r.instructions, BOOTSTRAP_LIMITS.instructionsChars),
+    ...(steps !== undefined ? { maxAgentSteps: Math.min(steps, 10_000) } : {}),
+    skills: strList(r.skills),
+    mcpServers: strList(r.mcp_servers),
+    nativeToolGroups: strList(r.native_tool_groups),
+    ...(typeof r.updated_at === 'string' ? { updatedAt: r.updated_at.slice(0, 64) } : {}),
+  };
+}
+
+function mapSkill(raw: unknown): ManagedSkill | null {
+  const r = rec(raw);
+  if (!r || typeof r.name !== 'string' || !SLUG_RE.test(r.name)) return null;
+  if (typeof r.content !== 'string' || !r.content.trim()) return null;
+  if (Buffer.byteLength(r.content, 'utf8') > BOOTSTRAP_LIMITS.skillContentBytes) return null;
+  const version = typeof r.version === 'number' && Number.isFinite(r.version) ? r.version : 0;
+  return {
+    name: r.name,
+    description: str(r.description),
+    tags: strList(r.tags, 50),
+    version,
+    ...(typeof r.status === 'string' ? { status: r.status.slice(0, 50) } : {}),
+    content: r.content,
+    ...(typeof r.updated_at === 'string' ? { updatedAt: r.updated_at.slice(0, 64) } : {}),
+  };
+}
+
+function mapTransport(raw: unknown): ManagedMcpTransport | undefined {
+  const r = rec(raw);
+  if (!r) return undefined;
+  const t = typeof r.type === 'string' ? r.type.toLowerCase() : '';
+  const type = t === 'http' || t === 'streamable_http' || t === 'streamablehttp' ? 'streamable-http' : t;
+  if (type === 'sse' || type === 'streamable-http') {
+    const url = str(r.url, 2048);
+    try {
+      const u = new URL(url);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return undefined;
+    } catch {
+      return undefined;
+    }
+    return { type, url };
+  }
+  if (type === 'stdio') {
+    const command = str(r.command, 1024);
+    if (!command) return undefined;
+    const env: Record<string, string> = {};
+    const envRaw = rec(r.env);
+    if (envRaw) {
+      for (const [k, v] of Object.entries(envRaw)) {
+        if (typeof v === 'string' && Object.keys(env).length < 100) env[k.slice(0, 200)] = v.slice(0, 2000);
+      }
+    }
+    return {
+      type: 'stdio',
+      command,
+      args: strList(r.args, 100),
+      ...(Object.keys(env).length ? { env } : {}),
+    };
+  }
+  return undefined;
+}
+
+function mapMcpServer(raw: unknown): ManagedMcpServer | null {
+  const r = rec(raw);
+  if (!r || typeof r.slug !== 'string' || !SLUG_RE.test(r.slug)) return null;
+  const exec = r.execution === 'client_remote' || r.execution === 'client_local' ? r.execution : 'server_only';
+  const base = {
+    slug: r.slug,
+    displayName: str(r.display_name, 200) || r.slug,
+    ...(typeof r.description === 'string' ? { description: str(r.description) } : {}),
+    ...(typeof r.category === 'string' ? { category: str(r.category, 100) } : {}),
+  };
+  if (exec === 'server_only') return { ...base, execution: 'server_only', auth: 'none' };
+  const transport = mapTransport(r.transport);
+  if (!transport) return null;
+  // The remote execution must use a url transport, the local one a command.
+  if (exec === 'client_remote' && transport.type === 'stdio') return null;
+  if (exec === 'client_local' && transport.type !== 'stdio') return null;
+  return {
+    ...base,
+    execution: exec,
+    transport,
+    auth: r.auth === 'aion_token' ? 'aion_token' : 'none',
+  };
+}
+
+function mapList<T>(raw: unknown, max: number, fn: (x: unknown) => T | null, key: (x: T) => string): T[] {
+  if (!Array.isArray(raw)) return [];
+  const out = new Map<string, T>();
+  for (const item of raw) {
+    if (out.size >= max) break;
+    let mapped: T | null = null;
+    try {
+      mapped = fn(item);
+    } catch {
+      mapped = null;
+    }
+    if (mapped) out.set(key(mapped), mapped);
+  }
+  return [...out.values()];
+}
+
+/** Maps the snake_case wire document to ClientBootstrap, dropping malformed items. */
+export function parseBootstrap(data: unknown): ClientBootstrap {
+  const d = rec(data);
+  if (!d) {
+    throw new EnterpriseHttpError(200, { code: 'invalid_response', message: 'Invalid bootstrap response' });
+  }
+  const interval = rec(d.policy)?.sync_interval_sec;
+  const syncIntervalSec =
+    typeof interval === 'number' && Number.isFinite(interval) && interval > 0
+      ? Math.min(Math.floor(interval), MAX_SYNC_INTERVAL_SEC)
+      : DEFAULT_SYNC_INTERVAL_SEC;
+  return {
+    revision: str(d.revision, 200),
+    profiles: mapList(d.profiles, BOOTSTRAP_LIMITS.profiles, mapProfile, (p) => p.slug),
+    skills: mapList(d.skills, BOOTSTRAP_LIMITS.skills, mapSkill, (s) => s.name),
+    mcpServers: mapList(d.mcp_servers, BOOTSTRAP_LIMITS.mcpServers, mapMcpServer, (m) => m.slug),
+    policy: { syncIntervalSec },
+  };
+}
+
+/**
+ * GET /v1/client/bootstrap with ETag support. 404 (older server) throws code 'bootstrap_unsupported'.
+ */
+export async function fetchBootstrap(
+  endpoint: string,
+  token: string,
+  etag?: string
+): Promise<BootstrapResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS * 2);
+  try {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    if (etag) headers['If-None-Match'] = etag;
+    let res: Response;
+    try {
+      res = await doFetch()(`${endpoint}/v1/client/bootstrap`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      throw new EnterpriseHttpError(0, networkError(err));
+    }
+    if (res.status === 304) return { status: 'not_modified' };
+    let parsed: unknown = null;
+    try {
+      const text = await res.text();
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      parsed = null;
+    }
+    if (res.status === 404) {
+      throw new EnterpriseHttpError(404, {
+        code: 'bootstrap_unsupported',
+        message: 'The server does not support client bootstrap',
+      });
+    }
+    if (!res.ok) throw new EnterpriseHttpError(res.status, parseErrorBody(res.status, parsed));
+    const data = parseBootstrap(parsed);
+    const headerEtag = res.headers?.get?.('etag') ?? '';
+    return { status: 'ok', etag: headerEtag || (data.revision ? `"${data.revision}"` : ''), data };
+  } finally {
+    clearTimeout(timer);
+  }
 }

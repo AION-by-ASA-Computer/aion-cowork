@@ -1190,6 +1190,42 @@
       "disconnectDesc": "Esce, rimuove la configurazione gestita e torna alla modalità standalone.",
       "disconnect": "Disconnetti",
       "disconnectConfirm": "Disconnettere da AION Agent e tornare alla modalità standalone? Dovrai accedere di nuovo per ricollegarti."
+    },
+    "sync": {
+      "title": "Sincronizzazione",
+      "description": "Profili, skill e server MCP gestiti dal server AION Agent.",
+      "state": "Stato",
+      "states": {
+        "idle": "Sincronizzato",
+        "syncing": "Sincronizzazione in corso...",
+        "error": "Errore",
+        "unsupported": "Non supportata",
+        "never": "Mai sincronizzato"
+      },
+      "lastSync": "Ultima sincronizzazione",
+      "never": "Mai",
+      "profiles": "Profili",
+      "skills": "Skill",
+      "mcpServers": "Server MCP",
+      "syncNow": "Sincronizza ora",
+      "syncing": "Sincronizzazione...",
+      "unsupported": "Il server non supporta ancora la sincronizzazione: verranno usati solo i modelli.",
+      "allowLocalMcp": "Consenti server MCP locali gestiti dall'azienda",
+      "allowLocalMcpWarning": "Questi server eseguono comandi su questo computer. Abilita solo se ti fidi della tua organizzazione ({{count}} disponibili).",
+      "profilesList": "Profili sincronizzati",
+      "errors": {
+        "generic": "Sincronizzazione non riuscita.",
+        "unreachable": "Server non raggiungibile. Riprova più tardi.",
+        "unauthorized": "Sessione scaduta: accedi di nuovo.",
+        "invalidResponse": "Risposta del server non valida.",
+        "writeFailed": "Impossibile salvare i dati sincronizzati sul disco."
+      }
     }
+  },
+  "profile": {
+    "selectorTitle": "Profilo AION",
+    "none": "Nessun profilo",
+    "noneDesc": "Comportamento standard di Cowork",
+    "badgeTitle": "Profilo: {{name}}"
   }
 }

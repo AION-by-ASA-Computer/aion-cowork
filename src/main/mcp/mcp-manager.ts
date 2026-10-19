@@ -49,6 +49,24 @@ export interface MCPServerConfig {
   url?: string; // For SSE / Streamable HTTP: server URL
   headers?: Record<string, string>; // For SSE / Streamable HTTP: HTTP headers
   enabled: boolean;
+  managed?: boolean; // Synced from AION Agent (enterprise): read-only for the user
+}
+
+/**
+ * Runtime header provider for managed servers (e.g. the AION Bearer token, never persisted).
+ * Returns extra headers to merge over config.headers, or undefined.
+ */
+let managedHeaderProvider: ((config: MCPServerConfig) => Record<string, string> | undefined) | null =
+  null;
+export function setManagedHeaderProvider(
+  fn: ((config: MCPServerConfig) => Record<string, string> | undefined) | null
+): void {
+  managedHeaderProvider = fn;
+}
+function effectiveHeaders(config: MCPServerConfig): Record<string, string> | undefined {
+  if (!config.managed || !managedHeaderProvider) return config.headers;
+  const extra = managedHeaderProvider(config);
+  return extra ? { ...config.headers, ...extra } : config.headers;
 }
 
 /**
@@ -539,6 +557,7 @@ export class MCPManager {
           url: c.url,
           env: c.env,
           headers: c.headers,
+          runtimeHeaders: c.managed ? effectiveHeaders(c) : undefined,
         }))
       );
       if (fingerprint === this.lastConfigFingerprint) {
@@ -963,7 +982,7 @@ export class MCPManager {
       }
 
       // Create SSE transport — headers must be passed via requestInit, not as a raw dict
-      transport = new SSEClientTransport(sseUrl, { requestInit: { headers: config.headers } });
+      transport = new SSEClientTransport(sseUrl, { requestInit: { headers: effectiveHeaders(config) } });
     } else if (config.type === 'streamable-http') {
       if (!config.url) {
         throw new Error(`Streamable HTTP server ${config.name} requires a URL`);
@@ -982,8 +1001,9 @@ export class MCPManager {
 
       // Create Streamable HTTP transport
       const requestInit: RequestInit = {};
-      if (config.headers && Object.keys(config.headers).length > 0) {
-        requestInit.headers = config.headers;
+      const httpHeaders = effectiveHeaders(config);
+      if (httpHeaders && Object.keys(httpHeaders).length > 0) {
+        requestInit.headers = httpHeaders;
       }
 
       const authProvider = this.getOrCreateStreamableHttpOAuthProvider(config);

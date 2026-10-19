@@ -16,6 +16,8 @@ export interface Session {
   allowedTools: string[];
   memoryEnabled: boolean;
   model?: string;
+  /** Managed AION profile slug (enterprise mode). */
+  profileId?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -482,6 +484,8 @@ export type ClientEvent =
         allowedTools?: string[];
         content?: ContentBlock[];
         memoryEnabled?: boolean;
+        /** Managed AION profile slug (enterprise mode). */
+        profileId?: string;
       };
     }
   | {

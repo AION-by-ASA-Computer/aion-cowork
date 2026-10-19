@@ -13,6 +13,7 @@ import type {
   EnterpriseStatus,
   ManagedAionSetInput,
 } from '../../shared/enterprise-types';
+import type { EnterpriseSyncStatus, ManagedProfile } from '../../shared/enterprise-sync-types';
 import * as auth from './auth';
 import type { EnterpriseStore } from './enterprise-store';
 import * as browserLogin from './browser-login';
@@ -25,7 +26,22 @@ export interface EnterpriseConfigPort {
   removeManagedAionSet(): unknown;
 }
 
+/** Subset of SyncService used by the service (injected; optional so phase-1 setups keep working). */
+export interface EnterpriseSyncPort {
+  getStatus(): EnterpriseSyncStatus;
+  syncNow(): Promise<EnterpriseSyncStatus>;
+  start(): void;
+  stop(): void;
+  clear(): Promise<void>;
+  listProfiles(): ManagedProfile[];
+  /** Re-applies the stored MCP list (local-MCP opt-in changed). */
+  reapplyMcp(): Promise<void>;
+  /** The access token changed (login/refresh): reconnect MCP servers that use it. */
+  onTokenChanged(): Promise<void>;
+}
+
 export interface EnterpriseServiceDeps {
+  sync?: EnterpriseSyncPort;
   store: Pick<
     EnterpriseStore,
     'get' | 'set' | 'getAccessToken' | 'hasToken' | 'clearSession' | 'clearConnection'
@@ -81,7 +97,51 @@ export class EnterpriseService {
     if (hasToken && s.get('mustChangePassword')) status.mustChangePassword = true;
     if (s.get('selectedModel')) status.selectedModel = s.get('selectedModel');
     if (s.get('serverVersion')) status.serverVersion = s.get('serverVersion');
+    if (endpoint && this.deps.sync) status.sync = this.deps.sync.getStatus();
     return status;
+  }
+
+  /** Called by the sync service when its status changed. */
+  notifySyncChanged(): void {
+    this.emit();
+  }
+
+  /** Called by the sync service on a 401. */
+  onSyncSessionExpired(): void {
+    this.markSessionExpired();
+  }
+
+  /** Starts (or triggers) the sync after the session/model changed; never blocks the caller. */
+  private kickSync(tokenChanged: boolean): void {
+    const sync = this.deps.sync;
+    if (!sync || !this.store.hasToken() || this.store.get('sessionExpired')) return;
+    if (this.store.get('mustChangePassword')) return;
+    if (tokenChanged) sync.onTokenChanged().catch((err) => this.log('onTokenChanged failed', err));
+    sync.start();
+  }
+
+  async listProfiles(): Promise<ManagedProfile[]> {
+    if (!this.store.get('endpoint') || !this.deps.sync) return [];
+    return this.deps.sync.listProfiles();
+  }
+
+  async setAllowLocalMcp(allow: boolean): Promise<EnterpriseStatus> {
+    this.store.set({ allowLocalMcp: allow === true });
+    if (this.deps.sync && this.store.get('endpoint')) {
+      try {
+        await this.deps.sync.reapplyMcp();
+      } catch (err) {
+        this.log('reapplyMcp failed', err);
+      }
+    }
+    return this.emit();
+  }
+
+  async syncNow(): Promise<EnterpriseStatus> {
+    if (this.deps.sync && this.store.get('endpoint') && this.store.hasToken()) {
+      await this.deps.sync.syncNow();
+    }
+    return this.emit();
   }
 
   private emit(): EnterpriseStatus {
@@ -257,6 +317,7 @@ export class EnterpriseService {
     }
     await this.applyManagedSet();
     this.scheduleRefresh();
+    this.kickSync(true);
     this.emit();
   }
 
@@ -297,6 +358,7 @@ export class EnterpriseService {
     }
     await this.applyManagedSet();
     this.scheduleRefresh();
+    this.kickSync(true);
     this.emit();
     return { ok: true, data: undefined };
   }
@@ -327,6 +389,7 @@ export class EnterpriseService {
       this.ttlMs = login.expiresAt ? Date.parse(login.expiresAt) - Date.now() : this.ttlMs;
       await this.applyManagedSet();
       this.scheduleRefresh();
+      this.kickSync(true);
       return { ok: true, data: this.emit() };
     } catch (err) {
       const result = this.failAuthed(err);
@@ -347,16 +410,21 @@ export class EnterpriseService {
     if (!this.store.get('sessionExpired')) {
       this.store.set({ sessionExpired: true });
       this.clearTimer();
+      this.deps.sync?.stop();
       this.emit();
     }
   }
 
   startScheduler(): void {
-    if (this.store.hasToken() && !this.store.get('sessionExpired')) this.scheduleRefresh();
+    if (this.store.hasToken() && !this.store.get('sessionExpired')) {
+      this.scheduleRefresh();
+      this.kickSync(false);
+    }
   }
 
   stopScheduler(): void {
     this.clearTimer();
+    this.deps.sync?.stop();
   }
 
   private clearTimer(): void {
@@ -397,6 +465,14 @@ export class EnterpriseService {
     if (endpoint && token) await auth.logout(endpoint, token);
     this.store.clearSession();
     this.pendingEndpoint = null;
+    // Managed profiles, MCP entries and skills on disk are removed with the session.
+    if (this.deps.sync) {
+      try {
+        await this.deps.sync.clear();
+      } catch (err) {
+        this.log('sync clear failed', err);
+      }
+    }
     // Keep the managed set (without a valid token it simply fails); the user re-logs in to refresh it.
     return this.emit();
   }
@@ -426,6 +502,7 @@ export class EnterpriseService {
     }
     this.store.set({ selectedModel: slug });
     await this.applyManagedSet(label);
+    this.kickSync(false);
     return { ok: true, data: this.emit() };
   }
 

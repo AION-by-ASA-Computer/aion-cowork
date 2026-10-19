@@ -220,6 +220,7 @@ const MANAGED_SERVER_KEYS: Array<keyof McpServerConfig> = [
   'url',
   'headers',
   'enabled',
+  'managed',
 ];
 
 export interface McpConfigWriteResult {
@@ -393,6 +394,9 @@ export function normalizeMcpServerEntry(
   }
   if (headers.record) {
     server.headers = headers.record;
+  }
+  if (raw.managed === true) {
+    server.managed = true;
   }
 
   const repaired =

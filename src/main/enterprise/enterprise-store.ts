@@ -18,6 +18,8 @@ export interface EnterpriseStoreData extends Record<string, unknown> {
   serverVersion: string;
   onboardingDone: boolean;
   sessionExpired: boolean;
+  /** Opt-in: allow server-managed MCP servers that run a local stdio command (client_local). */
+  allowLocalMcp: boolean;
 }
 
 export const DEFAULT_ENTERPRISE_DATA: EnterpriseStoreData = {
@@ -30,6 +32,7 @@ export const DEFAULT_ENTERPRISE_DATA: EnterpriseStoreData = {
   serverVersion: '',
   onboardingDone: false,
   sessionExpired: false,
+  allowLocalMcp: false,
 };
 
 /** Redacted view, safe to log or hand to the renderer. */
@@ -89,7 +92,7 @@ export class EnterpriseStore {
   /** Forgets everything about the enterprise connection except the onboarding choice. */
   clearConnection(): void {
     this.clearSession();
-    this.set({ endpoint: '', selectedModel: '', serverVersion: '' });
+    this.set({ endpoint: '', selectedModel: '', serverVersion: '', allowLocalMcp: false });
   }
 
   snapshot(): EnterpriseStoreSnapshot {

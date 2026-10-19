@@ -71,6 +71,12 @@ import {
 } from './pi-model-resolution';
 import { buildPiSessionRuntimeSignature } from './pi-session-runtime';
 import {
+  filterMcpToolsForProfile,
+  getProfilePromptSection,
+  getProfileSignature,
+  getProfileSkillPaths,
+} from '../enterprise/engine-bridge';
+import {
   LoopGuard,
   buildAbortUserMessage,
   buildHaltSteerMessage,
@@ -396,8 +402,8 @@ async function enrichProcessPathForBuild(): Promise<void> {
  * Bridge MCP tools from MCPManager into ToolDefinition[] format for the agent SDK.
  * Each MCP tool becomes a customTool whose execute() delegates to mcpManager.callTool().
  */
-function buildMcpCustomTools(mcpManager: MCPManager): ToolDefinition[] {
-  const mcpTools = mcpManager.getTools();
+function buildMcpCustomTools(mcpManager: MCPManager, profileId?: string): ToolDefinition[] {
+  const mcpTools = filterMcpToolsForProfile(mcpManager.getTools(), profileId);
   return mcpTools.map((mcpTool) => {
     // Wrap the raw JSON Schema inputSchema as a TypeBox TSchema
     const parameters = Type.Unsafe<Record<string, unknown>>(
@@ -1803,8 +1809,19 @@ ${hints.join('\n')}
           runtimeConfig.configSets.find((set) => set.id === runtimeConfig.activeConfigSetId)
             ?.managed === 'aion',
         subagent: configStore.getAll().subagent,
+        profile: getProfileSignature(session.profileId),
       });
       const skillPaths = await this.resolveSkillPaths(session.id);
+      // Enterprise profile skills (written to disk by the sync); none without a known profile.
+      for (const profileSkillPath of getProfileSkillPaths(session.profileId)) {
+        if (
+          profileSkillPath &&
+          fs.existsSync(profileSkillPath) &&
+          !skillPaths.includes(profileSkillPath)
+        ) {
+          skillPaths.push(profileSkillPath);
+        }
+      }
       const skillsSignature = JSON.stringify(skillPaths);
       log('[CoworkAgentRunner] Skill paths for pi ResourceLoader:', skillPaths);
 
@@ -2114,6 +2131,7 @@ Tool routing:
 - Use WebSearch/WebFetch only when Chrome MCP is unavailable or the user explicitly asks for generic web search.
 </tool_behavior>`,
         this.getBundledPathHints(),
+        getProfilePromptSection(session.profileId),
       ]
         .filter((section): section is string => Boolean(section && section.trim()))
         .join('\n\n');
@@ -2123,7 +2141,9 @@ Tool routing:
       // Create or reuse agent session
       // Bridge MCP tools as customTools for the agent SDK.
       // Re-read every query so newly added/removed MCP servers take effect immediately.
-      const mcpCustomTools = this.mcpManager ? buildMcpCustomTools(this.mcpManager) : [];
+      const mcpCustomTools = this.mcpManager
+        ? buildMcpCustomTools(this.mcpManager, session.profileId)
+        : [];
       const extensionCustomTools = extensionResult.customTools || [];
       const customTools = [...mcpCustomTools, ...extensionCustomTools];
       if (mcpCustomTools.length > 0) {
@@ -2929,7 +2949,12 @@ Tool routing:
           id: uuidv4(),
           sessionId: session.id,
           role: 'assistant',
-          content: [{ type: 'text', text: '**Request timed out**: no response was received for a long time and the operation was aborted.' }],
+          content: [
+            {
+              type: 'text',
+              text: '**Request timed out**: no response was received for a long time and the operation was aborted.',
+            },
+          ],
           timestamp: Date.now(),
         };
         this.sendMessage(session.id, errorMsg);
@@ -2972,7 +2997,12 @@ Tool routing:
             id: uuidv4(),
             sessionId: session.id,
             role: 'assistant',
-            content: [{ type: 'text', text: '**Request timed out**: no response was received for a long time and the operation was aborted.' }],
+            content: [
+              {
+                type: 'text',
+                text: '**Request timed out**: no response was received for a long time and the operation was aborted.',
+              },
+            ],
             timestamp: Date.now(),
           };
           this.sendMessage(session.id, errorMsg);

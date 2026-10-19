@@ -89,3 +89,48 @@ Corpo `{challenge, state, redirect}`. Valida `redirect` con la allow-list (env `
 
 ### `POST /auth/desktop/exchange` (pubblico)
 Corpo `{code, code_verifier}`. Verifica `base64url(sha256(code_verifier)) == challenge` (confronto a tempo costante) e consuma il codice in modo atomico (un verifier errato brucia il codice). Emette un **nuovo** token per l'utente e risponde con il payload di login standard (con `expires_at`/`expires_in`, `must_change_password`, `sso_link_required`). Errori: 400 `{detail:{code:"invalid_code"|"code_expired"|"code_already_used"|"invalid_verifier"}}`.
+
+## Fase 2: sync di profili, MCP e skill — `GET /v1/client/bootstrap` (Bearer)
+Un solo documento per utente, con `ETag` (revisione = hash del contenuto serializzato in modo stabile) e `If-None-Match` → 304 senza corpo. In `/v1/client/info` `features.client_bootstrap` diventa `true`. Il client lo chiama al login, all'avvio, ogni `policy.sync_interval_sec` e con "Sincronizza ora".
+
+```json
+{
+  "revision": "sha256:…",
+  "generated_at": "2026-10-20T08:00:00Z",
+  "profiles": [{
+    "slug": "generic_assistant", "name": "Assistente", "description": "…",
+    "instructions": "…", "max_agent_steps": 20,
+    "skills": ["core_protocol", "doc_writer"],
+    "mcp_servers": ["khub_rag", "plane"],
+    "native_tool_groups": ["files"],
+    "updated_at": "2026-10-12T10:00:00Z"
+  }],
+  "skills": [{
+    "name": "core_protocol", "description": "…", "tags": ["core"], "version": 3,
+    "status": "verified", "content": "---\nname: core_protocol\n…---\n# …", "updated_at": "…"
+  }],
+  "mcp_servers": [{
+    "slug": "khub_rag", "display_name": "Knowledge Hub", "description": "…", "category": "knowledge",
+    "execution": "client_remote",
+    "transport": {"type": "sse", "url": "https://…/mcp/sse"},
+    "auth": "aion_token"
+  }, {
+    "slug": "memory", "display_name": "Memoria", "execution": "server_only", "auth": "none"
+  }],
+  "policy": {"sync_interval_sec": 900}
+}
+```
+
+Regole lato server:
+- `profiles`: solo quelli consentiti all'utente (`user_profile_access`; nessuna riga = tutti), con `instructions` e `max_agent_steps` (che `GET /profiles` non espone). `skills` già espansa (wildcard risolti).
+- `skills`: solo le skill referenziate da almeno un profilo dell'utente e con `status` pubblicabile; `content` è il file `.md` completo. Limite di dimensione per skill (es. 256 KB; oltre, omessa con log).
+- `mcp_servers`: solo server visibili all'utente (`is_enabled_for_users` e presenti nel registro) e referenziati da almeno un suo profilo. `execution` è **dichiarata dall'admin**: un server è `client_remote` o `client_local` solo se il suo record di registro (`config/mcp_registry.yaml`) contiene un blocco esplicito `client: {execution, transport, auth}`; in assenza è `server_only`, senza `transport`. Mai esporre `command/args/env` del registro server, né URL o valori che derivano da variabili segrete; il blocco `client` è curato dall'admin e non può contenere segreti. `auth: "aion_token"` = il client invia il proprio token AION come `Authorization: Bearer` (il server MCP lo deve accettare); `credential_mode` `per_user`/`org_shared` non è supportato dal client in questa fase e va dichiarato `server_only`.
+- `revision`: hash stabile (chiavi ordinate) del documento senza `generated_at`; ETag = `"<revision>"`.
+- Errori: 401 token non valido; 404 non esiste su server vecchi (il client segna `unsupported` e continua in standalone/modelli soli).
+
+Regole lato client (Cowork):
+- I profili sono salvati nello store cifrato enterprise e mostrati in un selettore a inizio sessione; la scelta è salvata in `sessions.profile_id`.
+- Skill: scritte in `<userData>/aion-managed-skills/<nome>/SKILL.md` (sola lettura, riscritte solo se `version` cambia); a sessione con profilo si aggiungono quelle del profilo alle skill già presenti in Cowork.
+- MCP gestiti: registrati nello store MCP con id `aion-managed-<slug>`, nome `aion_<slug>`, `managed: true` (non modificabili/cancellabili dall'utente). Per `auth: aion_token` l'header Bearer si inietta a runtime dal token cifrato, mai persistito in chiaro. I `server_only` non vengono avviati. Con un profilo attivo, solo i server gestiti elencati in `mcp_servers` del profilo sono disponibili; gli MCP configurati dall'utente restano sempre disponibili.
+- Prompt: `instructions` del profilo si aggiungono al system prompt di Cowork (append), non lo sostituiscono.
+- Al logout/disconnessione i dati gestiti vengono rimossi (profili, MCP, skill scritte su disco).

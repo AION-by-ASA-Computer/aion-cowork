@@ -235,3 +235,63 @@ describe('EnterpriseService flows', () => {
     svc.stopScheduler();
   });
 });
+
+describe('EnterpriseService sync wiring', () => {
+  function withSync() {
+    const t = setup();
+    const sync = {
+      getStatus: vi.fn(() => ({ state: 'idle' as const, counts: { profiles: 2, skills: 1, mcpServers: 1 } })),
+      syncNow: vi.fn(async () => ({ state: 'idle' as const, counts: { profiles: 2, skills: 1, mcpServers: 1 } })),
+      start: vi.fn(),
+      stop: vi.fn(),
+      clear: vi.fn(async () => {}),
+      listProfiles: vi.fn(() => [{ slug: 'p' } as never]),
+      onTokenChanged: vi.fn(async () => {}),
+      reapplyMcp: vi.fn(async () => {}),
+    };
+    const svc = new EnterpriseService({
+      store: t.store as never,
+      config: { isConfigured: () => true, getAll: () => ({}), applyManagedAionSet: vi.fn(), removeManagedAionSet: vi.fn() },
+      syncConfigAfterMutation: vi.fn(async () => ({})),
+      emitStatus: t.emitStatus,
+      sync,
+    });
+    return { ...t, svc, sync };
+  }
+
+  it('setAllowLocalMcp persists the flag, re-applies the MCP list and emits status', async () => {
+    const t = withSync();
+    t.store.data.endpoint = 'https://h/api';
+    const st = await t.svc.setAllowLocalMcp(true);
+    expect(t.store.data.allowLocalMcp).toBe(true);
+    expect(t.sync.reapplyMcp).toHaveBeenCalledOnce();
+    expect(st).toBeTruthy();
+    await t.svc.setAllowLocalMcp(false);
+    expect(t.store.data.allowLocalMcp).toBe(false);
+    expect(t.sync.reapplyMcp).toHaveBeenCalledTimes(2);
+  });
+
+  it('exposes sync in status/listProfiles/syncNow only when connected', async () => {
+    const t = withSync();
+    expect(t.svc.getStatus().sync).toBeUndefined();
+    expect(await t.svc.listProfiles()).toEqual([]);
+    t.store.set({ endpoint: 'https://h/api', accessToken: 'tok' });
+    expect(t.svc.getStatus().sync?.counts.profiles).toBe(2);
+    expect(await t.svc.listProfiles()).toHaveLength(1);
+    await t.svc.syncNow();
+    expect(t.sync.syncNow).toHaveBeenCalledOnce();
+  });
+
+  it('clears managed data on logout and disconnect, and starts sync at scheduler start', async () => {
+    const t = withSync();
+    t.store.set({ endpoint: 'https://h/api', accessToken: 'tok', expiresAt: new Date(Date.now() + 3600_000).toISOString() });
+    t.svc.startScheduler();
+    expect(t.sync.start).toHaveBeenCalled();
+    await t.svc.logout();
+    expect(t.sync.clear).toHaveBeenCalledOnce();
+    t.svc.stopScheduler();
+    expect(t.sync.stop).toHaveBeenCalled();
+    await t.svc.disconnect();
+    expect(t.sync.clear).toHaveBeenCalledTimes(2);
+  });
+});

@@ -406,6 +406,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     selectModel: (slug) => ipcRenderer.invoke(EC.selectModel, slug),
     chooseStandalone: () => ipcRenderer.invoke(EC.chooseStandalone),
     disconnect: () => ipcRenderer.invoke(EC.disconnect),
+    listProfiles: () => ipcRenderer.invoke(EC.listProfiles),
+    syncNow: () => ipcRenderer.invoke(EC.syncNow),
+    setAllowLocalMcp: (allow) => ipcRenderer.invoke(EC.setAllowLocalMcp, allow),
     onStatus: (callback) => {
       const listener = (_: Electron.IpcRendererEvent, status: Parameters<typeof callback>[0]) =>
         callback(status);

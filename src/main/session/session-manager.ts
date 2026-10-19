@@ -59,6 +59,7 @@ import {
 import { generateTitleWithSdk } from '../agent/sdk-one-shot';
 import { buildScheduledTaskTitle } from '../../shared/schedule/task-title';
 import { MAX_RENAMED_SESSION_TITLE_LENGTH } from '../../shared/session-title';
+import { isKnownProfileSlug } from '../enterprise/engine-bridge';
 
 interface AgentRunner {
   run(session: Session, prompt: string, existingMessages: Message[]): Promise<void>;
@@ -265,11 +266,21 @@ export class SessionManager {
     cwd?: string,
     allowedTools?: string[],
     content?: ContentBlock[],
-    memoryEnabled?: boolean
+    memoryEnabled?: boolean,
+    profileId?: string
   ): Promise<Session> {
     log('[SessionManager] Starting new session:', title);
 
     const session = this.createSession(title, cwd, allowedTools, memoryEnabled);
+
+    // Enterprise profile: accept only a slug the resolver knows, otherwise start as a plain session.
+    if (profileId) {
+      if (isKnownProfileSlug(profileId)) {
+        session.profileId = profileId;
+      } else {
+        logWarn('[SessionManager] Ignoring unknown profileId:', profileId);
+      }
+    }
 
     // Save to database
     this.saveSession(session);
@@ -341,6 +352,7 @@ export class SessionManager {
       allowed_tools: JSON.stringify(session.allowedTools),
       memory_enabled: session.memoryEnabled ? 1 : 0,
       model: session.model || null,
+      profile_id: session.profileId || null,
       created_at: session.createdAt,
       updated_at: session.updatedAt,
     });
@@ -378,6 +390,7 @@ export class SessionManager {
       allowedTools,
       memoryEnabled: row.memory_enabled === 1,
       model: row.model || undefined,
+      profileId: row.profile_id || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -423,6 +436,7 @@ export class SessionManager {
         allowedTools,
         memoryEnabled: row.memory_enabled === 1,
         model: row.model || undefined,
+        profileId: row.profile_id || undefined,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };

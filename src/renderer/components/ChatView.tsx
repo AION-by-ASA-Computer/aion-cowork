@@ -19,6 +19,7 @@ import { ContextUsageBar } from './ContextUsageBar';
 import type { Message, ContentBlock } from '../types';
 import { Send, Square, Plus, Loader2, Plug, X, Clock } from 'lucide-react';
 import { isScrollNearBottom, resolveSessionScrollTop } from '../utils/chat-scroll-position';
+import { ProfileBadge } from './ProfileBadge';
 
 type AttachedFile = {
   name: string;
@@ -689,8 +690,9 @@ export function ChatView() {
         ref={headerRef}
         className="relative h-12 border-b border-border-muted grid grid-cols-[1fr_auto_1fr] items-center px-4 lg:px-8 bg-background/88 backdrop-blur-md"
       >
-        <div className="text-[11px] font-medium tracking-[0.08em] uppercase text-text-muted">
-          AION Cowork
+        <div className="flex items-center gap-2 min-w-0 text-[11px] font-medium tracking-[0.08em] uppercase text-text-muted">
+          <span>AION Cowork</span>
+          <ProfileBadge profileId={activeSession.profileId} />
         </div>
         <h2
           ref={titleRef}

@@ -1998,6 +1998,15 @@ const enterpriseService = registerEnterpriseIpc({
     }
   },
   clientVersion: app.getVersion(),
+  mcpRuntime: {
+    updateServer: async (cfg) => {
+      await sessionManager?.getMCPManager().updateServer(cfg);
+    },
+    removeServer: async (id) => {
+      await sessionManager?.getMCPManager().removeServer(id);
+    },
+    invalidateCache: () => sessionManager?.invalidateMcpServersCache(),
+  },
   openExternal: async (url) => {
     const protocol = new URL(url).protocol;
     if (protocol !== 'http:' && protocol !== 'https:') throw new Error('Unsupported URL scheme');
@@ -2188,6 +2197,9 @@ ipcMain.handle('mcp.getServer', (_event, serverId: string) => {
 });
 
 ipcMain.handle('mcp.saveServer', async (_event, config: MCPServerConfig) => {
+  // Enterprise-managed servers are read-only and `managed` cannot be forged from the renderer.
+  const managedBlock = mcpConfigStore.checkUserWrite(config);
+  if (managedBlock) return { success: false, error: managedBlock };
   mcpConfigStore.saveServer(config);
   // Update only this specific server, not all servers
   if (sessionManager) {
@@ -2211,6 +2223,8 @@ ipcMain.handle('mcp.saveServer', async (_event, config: MCPServerConfig) => {
 });
 
 ipcMain.handle('mcp.deleteServer', async (_event, serverId: string) => {
+  const managedBlock = mcpConfigStore.checkUserDelete(serverId);
+  if (managedBlock) return { success: false, error: managedBlock };
   mcpConfigStore.deleteServer(serverId);
   // Remove and disconnect only this specific server
   if (sessionManager) {
@@ -3306,7 +3320,8 @@ async function handleClientEvent(event: ClientEvent): Promise<unknown> {
         event.payload.cwd,
         event.payload.allowedTools,
         event.payload.content,
-        event.payload.memoryEnabled
+        event.payload.memoryEnabled,
+        event.payload.profileId
       );
 
     case 'session.continue':

@@ -19,8 +19,14 @@ const OVERLAY_FILES = new Set([
   'src/renderer/components/settings/SettingsAccount.tsx',
   'src/renderer/components/EnterpriseOnboarding.tsx',
   'src/shared/enterprise-types.ts',
+  'src/shared/enterprise-sync-types.ts',
   'src/renderer/hooks/useEnterpriseStatus.ts',
+  'src/renderer/hooks/useManagedProfiles.ts',
+  'src/renderer/components/ProfileSelector.tsx',
+  'src/renderer/components/ProfileBadge.tsx',
   'src/renderer/utils/enterprise-api.ts',
+  'src/renderer/utils/enterprise-helpers.ts',
+  'src/renderer/utils/enterprise-profiles.ts',
 ]);
 
 // Asset binari, test, documentazione: esclusi dal controllo.

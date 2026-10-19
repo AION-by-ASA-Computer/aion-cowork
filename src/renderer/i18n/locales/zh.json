@@ -1155,6 +1155,42 @@
       "disconnectDesc": "Sign out, remove the managed configuration and return to standalone mode.",
       "disconnect": "Disconnect",
       "disconnectConfirm": "Disconnect from AION Agent and return to standalone mode? You will need to sign in again to reconnect."
+    },
+    "sync": {
+      "title": "同步",
+      "description": "由 AION Agent 服务器管理的配置文件、技能和 MCP 服务器。",
+      "state": "状态",
+      "states": {
+        "idle": "已是最新",
+        "syncing": "正在同步...",
+        "error": "错误",
+        "unsupported": "不支持",
+        "never": "从未同步"
+      },
+      "lastSync": "上次同步",
+      "never": "从未",
+      "profiles": "配置文件",
+      "skills": "技能",
+      "mcpServers": "MCP 服务器",
+      "syncNow": "立即同步",
+      "syncing": "正在同步...",
+      "unsupported": "服务器尚不支持同步：仅使用模型。",
+      "allowLocalMcp": "允许由公司管理的本地 MCP 服务器",
+      "allowLocalMcpWarning": "这些服务器会在此电脑上运行命令。仅在您信任所在组织时启用（共 {{count}} 个）。",
+      "profilesList": "已同步的配置文件",
+      "errors": {
+        "generic": "同步失败。",
+        "unreachable": "无法连接服务器，请稍后重试。",
+        "unauthorized": "会话已过期，请重新登录。",
+        "invalidResponse": "服务器响应无效。",
+        "writeFailed": "无法将同步的数据保存到磁盘。"
+      }
     }
+  },
+  "profile": {
+    "selectorTitle": "AION 配置文件",
+    "none": "无配置文件",
+    "noneDesc": "标准 Cowork 行为",
+    "badgeTitle": "配置文件：{{name}}"
   }
 }

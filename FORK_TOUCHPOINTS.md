@@ -24,7 +24,7 @@ Ogni file upstream che modifichiamo aumenta il costo di ogni merge: un conflitto
 
 ## Stato attuale
 
-Alla data di redazione risultano **32 file sorgente upstream modificati**, quindi sopra la soglia di allerta di 15. Il conteggio è da ridurre nel tempo, spostando la logica negli overlay.
+Alla data di redazione risultano **oltre 40 file sorgente upstream modificati** (`npm run check:fork` stampa il conteggio aggiornato), quindi sopra la soglia di allerta di 15. Il conteggio è da ridurre nel tempo, spostando la logica negli overlay.
 
 ## File upstream modificati
 
@@ -53,6 +53,7 @@ Alla data di redazione risultano **32 file sorgente upstream modificati**, quind
 | `src/renderer/components/WelcomeView.tsx` | Nome "AION Cowork" nella schermata di benvenuto |
 | `src/renderer/components/settings/SettingsGeneral.tsx` | Selettore lingua con Italiano e English al posto di 中文; versione mostrata come "AION Cowork" |
 | `src/renderer/components/settings/SettingsMemory.tsx` | Testi della sezione memoria tradotti in inglese |
+| `src/renderer/hooks/useIPC.ts` | `startSession` accetta `profileId` opzionale e lo inoltra nel payload di `session.start` (profilo enterprise) |
 | `src/renderer/hooks/useApiConfigState.ts` | Nome predefinito "Default" e migrazione del vecchio nome cinese del set |
 | `src/renderer/i18n/config.ts` | Risorsa `zh` sostituita con `it`; fallback inglese |
 | `src/renderer/i18n/locales/en.json` | Testi di branding AION e aggiornamenti di copy (ad esempio provider email e remote channel) |
@@ -83,7 +84,7 @@ Il codice enterprise vive negli overlay (`src/main/enterprise/`, `src/shared/ent
 | `src/main/config/agent-runtime-signature.ts`, `src/main/agent/agent-runner.ts`, `src/main/agent/pi-session-runtime.ts` | il token del set gestito non fa ricreare la sessione pi (`excludeApiKey`) |
 | `src/renderer/App.tsx` | wizard di onboarding (lazy) quando `onboardingRequired` |
 | `src/renderer/components/SettingsPanel.tsx`, `src/main/nav-server.ts` | tab `account` |
-| `src/renderer/i18n/locales/{en,it,zh}.json` | chiavi `enterprise.*` e `settings.account*` |
+| `src/renderer/i18n/locales/en.json`, `src/renderer/i18n/locales/it.json`, `src/renderer/i18n/locales/zh.json` | chiavi `enterprise.*` e `settings.account*` |
 | `package.json` | script `check:fork` |
 
 Candidati a contributo a monte: set di configurazione gestiti/bloccati, header custom per modello, filtro MCP per sessione.

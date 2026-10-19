@@ -12,6 +12,8 @@ export interface PiSessionRuntimeSignatureInput {
   /** Managed (rotating-token) sets: key is applied per run, so exclude it from the signature. */
   excludeApiKey?: boolean;
   subagent?: SubagentConfig;
+  /** Enterprise profile fingerprint (slug + hash of instructions/MCP/skills); omitted for standalone sessions. */
+  profile?: string;
 }
 
 function normalizeText(value: string | undefined): string {
@@ -36,5 +38,6 @@ export function buildPiSessionRuntimeSignature(input: PiSessionRuntimeSignatureI
     effectiveCwd: normalizeText(input.effectiveCwd),
     apiKeyFingerprint: input.excludeApiKey ? '' : fingerprintSecret(input.apiKey),
     subagent: input.subagent,
+    profile: input.profile,
   });
 }

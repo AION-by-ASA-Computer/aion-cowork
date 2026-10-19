@@ -6,6 +6,8 @@
 
 export const ENTERPRISE_API_VERSION = 1;
 
+import type { EnterpriseSyncStatus, ManagedProfile } from './enterprise-sync-types';
+
 export type EnterpriseMode = 'standalone' | 'enterprise';
 
 export interface EnterpriseUser {
@@ -31,6 +33,8 @@ export interface EnterpriseStatus {
   /** Slug of the AION LLM provider selected for the managed config set. */
   selectedModel?: string;
   serverVersion?: string;
+  /** Phase 2 sync state (profiles, MCP, skills). */
+  sync?: EnterpriseSyncStatus;
 }
 
 export interface EnterpriseError {
@@ -127,6 +131,12 @@ export interface EnterpriseAPI {
    */
   loginWithBrowser(endpoint: string): Promise<EnterpriseLoginResult>;
   cancelBrowserLogin(): Promise<void>;
+  /** Managed profiles synced from the server (empty in standalone mode). */
+  listProfiles(): Promise<ManagedProfile[]>;
+  /** Forces a sync now; resolves with the status after the attempt. */
+  syncNow(): Promise<EnterpriseStatus>;
+  /** Opt in/out of managed MCP servers that run local commands; re-applies the last sync immediately. */
+  setAllowLocalMcp(allow: boolean): Promise<EnterpriseStatus>;
   /**
    * Subscribes to status pushes on a dedicated IPC channel (ENTERPRISE_STATUS_CHANNEL).
    * Independent from electronAPI.on, which only allows a single listener.
@@ -154,6 +164,9 @@ export const ENTERPRISE_CHANNELS = {
   disconnect: 'enterprise.disconnect',
   loginWithBrowser: 'enterprise.loginWithBrowser',
   cancelBrowserLogin: 'enterprise.cancelBrowserLogin',
+  listProfiles: 'enterprise.listProfiles',
+  syncNow: 'enterprise.syncNow',
+  setAllowLocalMcp: 'enterprise.setAllowLocalMcp',
 } as const;
 
 /** ServerEvent type pushed to the renderer when status changes; payload is EnterpriseStatus. */

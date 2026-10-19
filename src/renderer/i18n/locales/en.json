@@ -1189,6 +1189,42 @@
       "disconnectDesc": "Sign out, remove the managed configuration and return to standalone mode.",
       "disconnect": "Disconnect",
       "disconnectConfirm": "Disconnect from AION Agent and return to standalone mode? You will need to sign in again to reconnect."
+    },
+    "sync": {
+      "title": "Synchronization",
+      "description": "Profiles, skills and MCP servers managed by the AION Agent server.",
+      "state": "Status",
+      "states": {
+        "idle": "Up to date",
+        "syncing": "Syncing...",
+        "error": "Error",
+        "unsupported": "Not supported",
+        "never": "Never synced"
+      },
+      "lastSync": "Last sync",
+      "never": "Never",
+      "profiles": "Profiles",
+      "skills": "Skills",
+      "mcpServers": "MCP servers",
+      "syncNow": "Sync now",
+      "syncing": "Syncing...",
+      "unsupported": "The server does not support synchronization yet: only models will be used.",
+      "allowLocalMcp": "Allow local MCP servers managed by the company",
+      "allowLocalMcpWarning": "These servers run commands on this computer. Enable only if you trust your organization ({{count}} available).",
+      "profilesList": "Synced profiles",
+      "errors": {
+        "generic": "Synchronization failed.",
+        "unreachable": "Server unreachable. Try again later.",
+        "unauthorized": "Session expired: sign in again.",
+        "invalidResponse": "Invalid server response.",
+        "writeFailed": "Could not save the synced data to disk."
+      }
     }
+  },
+  "profile": {
+    "selectorTitle": "AION profile",
+    "none": "No profile",
+    "noneDesc": "Standard Cowork behavior",
+    "badgeTitle": "Profile: {{name}}"
   }
 }
